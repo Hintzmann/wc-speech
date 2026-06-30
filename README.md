@@ -6,7 +6,7 @@ A small web component that adds an in-page **speech tool** for sighted users wit
 
 ## Demo
 
-**Live demo:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/) (after GitHub Pages is enabled — see below).
+**Live demo:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/).
 
 **Local preview** — from the repository root:
 
@@ -16,8 +16,6 @@ npm start
 ```
 
 Open [http://localhost:3000/demo/](http://localhost:3000/demo/) for the live demo and inline documentation.
-
-To enable the public demo on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Pushing to `main` runs the deploy workflow; the site is published at the URL above.
 
 ## Quick start
 
