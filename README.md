@@ -6,7 +6,7 @@ A small web component that adds an in-page **speech tool** for sighted users wit
 
 ## Demo
 
-**Live demos:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/) — [simple](https://hintzmann.github.io/wc-speech/demo/simple/) · [advanced](https://hintzmann.github.io/wc-speech/demo/advanced/) (after GitHub Pages is enabled — see below).
+**Live demos:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/) — [simple](https://hintzmann.github.io/wc-speech/demo/simple/) · [advanced](https://hintzmann.github.io/wc-speech/demo/advanced/).
 
 **Local preview** — from the repository root:
 
