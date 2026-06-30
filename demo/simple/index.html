@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Speech tool demo (simple)</title>
+    <meta name="description" content="Minimal wc-speech integration with a Danish play/pause toggle button.">
+    <link rel="stylesheet" href="../../speech.css">
+    <link rel="stylesheet" href="../demo.css">
+  </head>
+  <body>
+
+    <main>
+      <p><a href="../">All demos</a> · <a href="../advanced/">Advanced demo</a></p>
+
+      <button type="button" commandfor="speech" command="--playpause">
+        <span data-speech-face="play">🗣️ Læs op</span>
+        <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
+      </button>
+
+      <wc-speech id="speech" target="#article" hidden prefer-voice="Microsoft"></wc-speech>
+
+      <article id="article" lang="en">
+        <h1>Simple integration</h1>
+        <p>
+          This page uses one button wired to <code>command="--playpause"</code>.
+          There is no speech bar, voice picker, or speed control — defaults only.
+        </p>
+        <p>
+          The button and <code>&lt;wc-speech&gt;</code> sit <strong>outside</strong> the reading
+          target (<code>#article</code>). Point <code>target</code> at the content to speak; keep
+          controls outside when you can so they are not collected as readable text.
+        </p>
+        <p>
+          If <code>&lt;wc-speech&gt;</code> is inside the target, the component still skips its
+          own subtree when collecting text.
+        </p>
+        <p>
+          Press <strong><span aria-hidden="true">🗣️</span> Læs op</strong> to hear this article. Use the same button to pause.
+        </p>
+      </article>
+    </main>
+
+    <script type="module" src="../../wc-speech.js"></script>
+  </body>
+</html>

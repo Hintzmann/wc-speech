@@ -252,12 +252,38 @@ class WcSpeech extends HTMLElement {
     next?.toggleAttribute('disabled', !isActive || this.#nodeIndex >= this.#nodeList.length - 1);
 
     if (playPause) {
-      const playAction = !isActive || isPaused;
-      const label = playAction ? this.#text('label-play') : this.#text('label-pause');
-      playPause.textContent = playAction ? '▶️' : '⏸️';
-      playPause.setAttribute('aria-label', label);
-      playPause.setAttribute('title', label);
+      const action = !isActive || isPaused ? 'play' : 'pause';
+      this.#syncPlayPauseButton(playPause, action);
     }
+  }
+
+  #syncPlayPauseButton(button, action) {
+    button.setAttribute('data-speech-action', action);
+
+    const faces = button.querySelectorAll('[data-speech-face]');
+    if (faces.length > 0) {
+      for (const face of faces) {
+        face.hidden = face.getAttribute('data-speech-face') !== action;
+      }
+    }
+
+    if (button.hasAttribute('data-speech-manual-a11y')) {
+      return;
+    }
+
+    const hasVisibleFaceLabel = [...faces].some(
+      (face) => !face.hidden && face.getAttribute('aria-hidden') !== 'true'
+    );
+
+    if (hasVisibleFaceLabel) {
+      button.removeAttribute('aria-label');
+      button.removeAttribute('title');
+      return;
+    }
+
+    const label = this.#text(action === 'play' ? 'label-play' : 'label-pause');
+    button.setAttribute('aria-label', label);
+    button.setAttribute('title', label);
   }
 
   #resolveVoiceSelect() {
@@ -531,6 +557,10 @@ class WcSpeech extends HTMLElement {
       }
 
       if (skipTags.has(tagName)) {
+        continue next;
+      }
+
+      if (tagName === 'wc-speech') {
         continue next;
       }
 

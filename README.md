@@ -6,7 +6,7 @@ A small web component that adds an in-page **speech tool** for sighted users wit
 
 ## Demo
 
-**Live demo:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/) (after GitHub Pages is enabled — see below).
+**Live demos:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/) — [simple](https://hintzmann.github.io/wc-speech/demo/simple/) · [advanced](https://hintzmann.github.io/wc-speech/demo/advanced/) (after GitHub Pages is enabled — see below).
 
 **Local preview** — from the repository root:
 
@@ -15,7 +15,7 @@ npm install
 npm start
 ```
 
-Open [http://localhost:3000/demo/](http://localhost:3000/demo/) for the live demo and inline documentation.
+Open [http://localhost:3000/demo/](http://localhost:3000/demo/) and choose **simple** or **advanced**.
 
 To enable the public demo on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Pushing to `main` runs the deploy workflow; the site is published at the URL above.
 
@@ -31,22 +31,24 @@ Minimal wiring:
 ```html
 <link rel="stylesheet" href="speech.css">
 
-<button type="button" commandfor="speech" command="--show-controls">
-  Speech tool
+<button type="button" commandfor="speech" command="--playpause">
+  <span data-speech-face="play">Listen</span>
+  <span data-speech-face="pause" hidden>Pause</span>
 </button>
 
-<wc-speech id="speech" voice="speech-voice" rate="speech-rate" target="#article" hidden>
-  <!-- toolbar markup — see demo index.html or "Expected markup" below -->
-</wc-speech>
+<wc-speech id="speech" target="#article" hidden prefer-voice="Microsoft"></wc-speech>
 
 <article id="article" lang="en">
+  <h1>Readable content</h1>
   <p>Content to speak.</p>
 </article>
 
 <script type="module" src="wc-speech.js"></script>
 ```
 
-Point `target` at **readable content only**. Do not include the speech toolbar or site chrome inside the target selector.
+See `demo/simple/index.html` for this layout, or `demo/advanced/index.html` for the full speech bar, voice picker, and documentation.
+
+Point `target` at **readable content only**. Put the button and `<wc-speech>` **outside** the target when you can so controls are not spoken. If `<wc-speech>` is inside the target, its subtree is skipped automatically.
 
 Set `lang` on `<html>` and on any section that uses another language.
 
@@ -62,8 +64,9 @@ Inside `<wc-speech>`, the component looks for:
 | `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
 | `[role="status"]` | Optional live region for Speaking / Paused / Finished |
 | `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, etc. |
+| `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside the play/pause button; the component toggles visibility |
 
-See `demo/index.html` for a complete toolbar example.
+See `demo/advanced/index.html` for a complete toolbar example.
 
 ## Known limits (preview)
 
@@ -93,15 +96,15 @@ Optional enhancements:
 | `prefer-voice` | Prefer voice names/URIs containing this text |
 | `scroll` | Follow along while reading (honours `prefers-reduced-motion`) |
 | `code-lang` | Language for `pre` / `code` blocks (default `en`) |
-| `label-play`, `label-pause` | Play/pause button labels (default English) |
+| `label-play`, `label-pause` | Accessible name for play/pause (default English); visible label comes from your `data-speech-face` markup |
 | `status-speaking`, `status-paused`, `status-finished` | Status region text |
 | `hidden` | Hide toolbar until `--show-controls` |
 
-Full reference: see the **Documentation** section in `demo/index.html`.
+Full reference: see the **Documentation** section in `demo/advanced/index.html`.
 
 ## Skipped content
 
-Not spoken: form controls (`select`, `input`, `textarea`, `button`), `script` / `style` / `noscript`, subtrees with `aria-hidden="true"` or the `hidden` attribute, and images with an empty `alt`. Images with `alt` text are spoken as the alt text. Abbreviations with a `title` attribute are spoken as the expanded form. `<time datetime="…">` speaks visible text and, when useful, a localized date from `datetime`. `pre` and `code` blocks are spoken as their text content in `code-lang` (default English).
+Not spoken: `wc-speech` subtrees, form controls (`select`, `input`, `textarea`, `button`), `script` / `style` / `noscript`, subtrees with `aria-hidden="true"` or the `hidden` attribute, and images with an empty `alt`. Images with `alt` text are spoken as the alt text. Abbreviations with a `title` attribute are spoken as the expanded form. `<time datetime="…">` speaks visible text and, when useful, a localized date from `datetime`. `pre` and `code` blocks are spoken as their text content in `code-lang` (default English).
 
 ## Feedback
 

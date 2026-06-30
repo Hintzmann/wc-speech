@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Speech tool demo (advanced)</title>
+    <meta name="description" content="A small web component that adds an in-page speech tool for sighted users without text-to-speech software installed. Built on the Web Speech API. Not a replacement for assistive technology.">
+    <link rel="stylesheet" href="../../speech.css">
+    <link rel="stylesheet" href="../demo.css">
+  </head>
+  <body>
+
+    <button type="button" commandfor="speech" command="--show-controls" class="speech-show">
+      🗣️ Speech tool
+    </button>
+
+    <main id="speech-target">
+
+      <h1>Speech tool demo (advanced)</h1>
+
+      <p><a href="../">All demos</a> · <a href="../simple/">Simple demo</a></p>
+
+      <ul>
+        <li><a href="#help">How to use</a></li>
+        <li><a href="#example">Example (Danish)</a></li>
+        <li><a href="#markup">Markup behaviour</a></li>
+        <li><a href="#documentation">Documentation</a></li>
+        <li><a href="#references">References</a></li>
+      </ul>
+
+      <section id="help">
+        <h2>How to use</h2>
+        <p>
+          Click <strong><span aria-hidden="true">🗣️</span> Speech tool</strong> in the top-right corner to open the toolbar.
+          Press <span aria-hidden="true">▶️</span> play to have this page spoken. Use the <span aria-hidden="true">⏪</span> previous and <span aria-hidden="true">⏩</span> next buttons to jump
+          between sentences, and <span aria-hidden="true">⏸️</span> pause to stop at any time.
+        </p>
+        <p>
+          Open <strong><span aria-hidden="true">⚙️</span> Voice options</strong> to choose a voice, change the speed, or
+          turn on scroll-to-follow so the page keeps the current sentence in view.
+        </p>
+      </section>
+
+      <section id="example">
+        <h2>Example (Danish)</h2>
+        <p>
+          A short excerpt from a real speech — to hear natural Danish, initials such as
+          <strong>H.K.H.</strong>, and an inline French title. Press play and listen through this section first.
+        </p>
+
+        <section lang="da">
+          <h3>H.K.H. Prinsesse Maries båltale</h3>
+          <img class="image" src="../images/Prinsessan_Marie_av_Danmark.jpg"
+            alt="H.K.H. Prinsesse Marie" width="95" height="131"
+            fetchpriority="high">
+          <p>Kære alle sammen. Mange tak for invitationen til at holde årets båltale i Skagen.</p>
+          <img class="image" src="../images/P.S._Krøyer,_Selvportræt.jpg"
+            alt="P.S. Krøyer" width="100" height="133"
+            loading="lazy">
+          <p>På Skagens Museum kan man se en udstilling om <abbr title="Peder Severin Krøyer">P.S. Krøyer</abbr> og den franske kunstscene.</p>
+          <img class="image" src="../images/Monet_-_Impression,_Sunrise.jpg"
+            alt="C. Monet - Impression, soleil levant" width="96" height="75"
+            loading="lazy">
+          <p>Et højdepunkt er Claude Monets ”<span lang="fr">Impression, soleil levant</span>” på museet.</p>
+          <p>
+            Læs hele talen: <a href="https://www.dansketaler.dk/tale/h-k-h-prinsesse-maries-baltale">H.K.H. Prinsesse Maries båltale</a>
+          </p>
+        </section>
+      </section>
+
+      <section id="markup">
+        <h2>Markup behaviour</h2>
+        <p>
+          Compact English samples — each block shows one kind of markup. Use prev/next sentence
+          to step through and hear what the component does with each element.
+        </p>
+
+        <h3>Images</h3>
+        <p>
+          Informative images are spoken from their <code>alt</code> text.
+          The portrait <img class="image" src="../images/Prinsessan_Marie_av_Danmark.jpg"
+            alt="H.K.H. Prinsesse Marie" width="60" height="83" loading="lazy">
+          sits beside the text. Decorative images with an empty <code>alt</code> are skipped —
+          the next image has no spoken announcement.
+        </p>
+        <p>Decorative image:
+          <img src="../images/Monet_-_Impression,_Sunrise.jpg" alt="" width="96" height="75" loading="lazy">
+        </p>
+
+        <h3>Abbreviations</h3>
+        <p>
+          An <code>abbr</code> with a <code>title</code> is spoken as the expansion:
+          <abbr title="European Accessibility Act">EAA</abbr>.
+        </p>
+
+        <h3>Dates</h3>
+        <p>
+          A <code>time</code> element can add a localized date from <code>datetime</code>:
+          the exhibition opened on
+          <time datetime="2014-06-23">23 June 2014</time>.
+        </p>
+
+        <h3>Code</h3>
+        <p>
+          Inline and block code is read as its text content in <code>code-lang</code> (default English):
+          <pre><code>console.log('Hello, world!');</code></pre>
+        </p>
+
+        <h3>Links</h3>
+        <p>
+          Link text stays in the sentence flow — you should hear “full article” inline:
+          read the <a href="https://www.dansketaler.dk/tale/h-k-h-prinsesse-maries-baltale">full article</a> for the complete speech.
+        </p>
+
+        <h3>Edits</h3>
+        <p>
+          Insertions and deletions are read as plain text:
+          price was <del>100 kr.</del> <ins>75 kr.</ins> after the discount.
+        </p>
+      </section>
+
+      <section id="documentation">
+        <h2>Documentation</h2>
+
+        <p>
+          <code>wc-speech</code> is a small text-to-speech web component built on the
+          Web Speech API. It reads text from another part of the page, follows the
+          document's <code>lang</code> attributes, and highlights the current sentence
+          and word when the browser supports custom highlights.
+        </p>
+
+        <h3>Preview / known limits</h3>
+        <p>
+          This is an <strong>early preview</strong> for developer feedback. The API and
+          markup contract may change. See also <a href="../../../README.md"><code>README.md</code></a> in the repository root.
+        </p>
+        <ul>
+          <li>Use <strong>one speech tool per page</strong> — <code>speechSynthesis</code> and <code>CSS.highlights</code> are shared globally.</li>
+          <li>Point <code>target</code> at readable content. <code>wc-speech</code> subtrees are skipped automatically; keep other controls outside the target when you can.</li>
+          <li>When speech synthesis is unsupported, controls are disabled with no message yet.</li>
+          <li><strong>Pause</strong> cancels the current sentence; resume starts that sentence again from the beginning.</li>
+          <li>Word highlighting depends on browser, voice, and the Custom Highlight API.</li>
+          <li>No automated tests yet — manual testing only.</li>
+        </ul>
+
+        <h3>Who this is for</h3>
+        <p>
+          <code>wc-speech</code> is a simple in-page <strong>speech tool</strong> for <strong>sighted users who
+          do not have text-to-speech software installed</strong>. It is not a replacement
+          for assistive technology. People who rely on screen readers or built-in
+          operating-system narration already have their own, more capable speech tools and
+          will use those — this component is intentionally simple and stays out of their way.
+        </p>
+
+        <h3>Why it exists (Directive (EU) 2019/882)</h3>
+        <p>
+          The European Accessibility Act (Directive (EU) 2019/882) <a href="https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng#:~:text=The%20information%20shall%20be%20made%20available%20to%20the%20public%20in%20written%20and%20oral%20format">Article 13.2</a> encourages key
+          information to be available through more than one sensory channel — for instance,
+          text that can also be rendered orally. <code>wc-speech</code> provides an in-page
+          spoken version of written content to help cover that "written and oral format"
+          expectation for visitors who would not otherwise have a speech option.
+        </p>
+        <p>
+          <small>
+            That said, native browser and operating-system text-to-speech features — and
+            dedicated assistive technology — generally do this more reliably than a
+            per-site speech tool. Treat <code>wc-speech</code> as a pragmatic fill for a specific
+            gap, not as a substitute for real assistive technology or a guarantee of legal
+            compliance.
+          </small>
+        </p>
+
+        <h3>Expected markup</h3>
+        <p>
+          Inside <code>&lt;wc-speech&gt;</code>, the component expects a voice
+          <code>select</code>, a rate <code>input</code>, a <code>[popover]</code> options
+          panel, command buttons with <code>commandfor</code> and <code>command</code>, and
+          optionally <code>[data-speech-scroll]</code> and <code>[role="status"]</code>.
+          See the toolbar on this page, or the <a href="../simple/">simple demo</a> for a one-button setup.
+        </p>
+
+        <h3>Basic setup</h3>
+        <p>
+          Add the component, point <code>target</code> at the content that should be
+          read, and wire buttons to the component with <code>commandfor</code> and
+          <code>command</code>.
+        </p>
+
+        <pre class="code" tabindex="0"><code>&lt;button type="button" commandfor="speech" command="--show-controls"&gt;
+  Show speech tool
+&lt;/button&gt;
+
+&lt;wc-speech 
+  id="speech" voice="speech-voice" rate="speech-rate" 
+  target="#article" prefer-voice="Microsoft" hidden&gt;
+
+  &lt;button type="button" commandfor="speech" command="--playpause"&gt;
+    &lt;span data-speech-face="play"&gt;Play&lt;/span&gt;
+    &lt;span data-speech-face="pause" hidden&gt;Pause&lt;/span&gt;
+  &lt;/button&gt;
+
+  &lt;button type="button" commandfor="speech" 
+    command="--previous-sentence"&gt;Previous&lt;/button&gt;
+
+  &lt;button type="button" commandfor="speech" 
+    command="--next-sentence"&gt;Next&lt;/button&gt;
+
+  &lt;select id="speech-voice"&gt;&lt;/select&gt;
+
+  &lt;input id="speech-rate" type="range" min="0" max="3.5" step="0.5" value="1"&gt;
+&lt;/wc-speech&gt;
+
+&lt;article id="article" lang="en"&gt;
+  &lt;h1&gt;Readable content&lt;/h1&gt;
+  &lt;p&gt;This text can be spoken.&lt;/p&gt;
+&lt;/article&gt;</code></pre>
+
+        <h3>Attributes</h3>
+        <dl>
+          <dt><code>target</code></dt>
+          <dd>CSS selector for the content that should be read. Put controls outside the target when you can. <code>wc-speech</code> elements inside the target are skipped automatically.</dd>
+
+          <dt><code>voice</code></dt>
+          <dd>ID of a <code>select</code> element that should be populated with available voices.</dd>
+
+          <dt><code>rate</code></dt>
+          <dd>ID of a range input used for speech speed. The current demo uses <code>0</code> to <code>3.5</code>.</dd>
+
+          <dt><code>prefer-voice</code></dt>
+          <dd>Optional text used to prefer matching voice names or voice URIs when the component auto-selects a voice, for example <code>Microsoft</code> for system voices on Windows. Users can still choose another voice manually.</dd>
+
+          <dt><code>scroll</code></dt>
+          <dd>Optional boolean. When present, the page follows along by scrolling the current sentence into view while reading. Honors <code>prefers-reduced-motion</code> (smooth scrolling is disabled when the user prefers reduced motion). This attribute is the default for the "Scroll to follow while reading" checkbox in the voice options, and users can toggle it there at runtime.</dd>
+
+          <dt><code>code-lang</code></dt>
+          <dd>Optional language used when reading <code>pre</code> and <code>code</code> blocks, since source code is normally English. Defaults to <code>en</code> and ignores the surrounding document language. An explicit <code>lang</code> attribute on the code element still wins.</dd>
+
+          <dt><code>label-play</code> / <code>label-pause</code></dt>
+          <dd>Optional accessible name for the play/pause button (used as <code>aria-label</code> and <code>title</code> unless the button has <code>data-speech-manual-a11y</code>). Defaults to <code>Play</code> and <code>Pause</code>. Visible icon and text live in your markup — see <code>data-speech-face</code> below.</dd>
+
+          <dt><code>data-speech-face="play"</code> / <code>data-speech-face="pause"</code></dt>
+          <dd>On child elements of a <code>command="--playpause"</code> button. The component toggles which face is shown and sets <code>data-speech-action</code> on the button. You supply icons, emoji, or text; wc-speech does not hardcode them. Icon-only buttons can use <code>aria-hidden="true"</code> on faces and rely on <code>label-play</code> / <code>label-pause</code> for the accessible name.</dd>
+
+          <dt><code>status-speaking</code> / <code>status-paused</code> / <code>status-finished</code></dt>
+          <dd>Optional text announced in the status region when reading starts or resumes, pauses, and finishes. Defaults to <code>Speaking</code>, <code>Paused</code>, and <code>Finished</code>.</dd>
+
+          <dt><code>hidden</code></dt>
+          <dd>Hides the control bar until it is opened with <code>--show-controls</code>.</dd>
+        </dl>
+
+        <h3>Commands</h3>
+        <dl>
+          <dt><code>--show-controls</code> / <code>--hide-controls</code></dt>
+          <dd>Show or hide the control bar. Hiding also stops speech and clears highlights.</dd>
+
+          <dt><code>--playpause</code></dt>
+          <dd>Start speech, pause the current sentence, or continue from the start of the current sentence. Pause uses <code>cancel()</code> rather than <code>pause()</code> for better cross-browser behaviour.</dd>
+
+          <dt><code>--previous-sentence</code> / <code>--next-sentence</code></dt>
+          <dd>Move backward or forward while speech is active.</dd>
+
+          <dt><code>--toggle-options</code></dt>
+          <dd>Show or hide the voice and speed options popover.</dd>
+        </dl>
+
+        <h3>Language</h3>
+        <p>
+          Add a <code>lang</code> attribute to the page and to any content that changes
+          language. The component resolves language from the element being spoken and
+          its ancestors, so mixed-language content like <code>&lt;span lang="fr"&gt;</code>
+          can use another voice when available.
+        </p>
+
+        <h3>Highlight colors</h3>
+        <p>
+          Override these CSS custom properties to change the word and sentence
+          highlights:
+        </p>
+
+        <pre><code>:root {
+  --speech-word-bg: Mark;
+  --speech-word-text: MarkText;
+  --speech-sentence-bg: SelectedItem;
+  --speech-sentence-text: SelectedItemText;
+}</code></pre>
+
+        <h3>Worth knowing</h3>
+        <ul>
+          <li>The component needs browser support for <a href="https://caniuse.com/speech-synthesis"><code>speechSynthesis</code></a> and <a href="https://caniuse.com/mdn-api_speechsynthesisutterance"><code>SpeechSynthesisUtterance</code></a>.</li>
+          <li>Word and sentence highlighting is progressive enhancement. Speech still works without the <a href="https://caniuse.com/mdn-api_css_highlights_static">Custom Highlight API</a>.</li>
+          <li>Word highlighting also depends on the selected voice. Some Chrome Google voices do not emit reliable word boundaries, so the component may fall back to sentence highlighting only. Use <code>prefer-voice</code> to prefer voices that behave better for your target browsers.</li>
+          <li>Native <a href="https://caniuse.com/mdn-html_elements_button_commandfor"><code>commandfor</code></a> support is still new, so the component includes a click fallback for its own commands.</li>
+          <li>Image <code>alt</code> text is spoken as-is; empty <code>alt</code> is skipped. <code>abbr title</code> is read as the expanded form. <code>time datetime</code> can add a spoken date. <code>pre</code> and <code>code</code> are read in <code>code-lang</code>. <code>wc-speech</code>, form controls, <code>script</code>, <code>style</code>, and elements with <code>aria-hidden="true"</code> or <code>hidden</code> are skipped.</li>
+        </ul>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <ul>
+          <li><a href="https://dbushell.com/2025/07/26/text-to-speech-synthesis/">Text to speech synthesis</a></li>
+          <li><a href="https://www.dansketaler.dk/tale/h-k-h-prinsesse-maries-baltale">H.K.H. Prinsesse Maries båltale</a></li>
+          <li><a href="https://da.wikipedia.org/wiki/Indtryk._Solopgang#/media/Fil:Monet_-_Impression,_Sunrise.jpg">Monet - Impression, soleil levant</a></li>
+          <li><a href="https://da.wikipedia.org/wiki/Peder_Severin_Krøyer#/media/Fil:P.S._Krøyer,_Selvportræt.jpg">P.S. Krøyer - Selvportræt</a></li>
+          <li><a href="https://da.wikipedia.org/wiki/Hendes_Kongelige_Højhed_Prinsesse_Marie#/media/Fil:H.K.H.PrinsesseMarie.jpeg">H.K.H. Prinsesse Marie</a></li>
+          <li><a href="https://support.microsoft.com/da-dk/education/download-languages-and-voices-for-immersive-reader-read-mode-and-read-aloud">Download sprog og stemmer til Forenklet læser, læsetilstand og højtlæsning</a></li>
+          <li><a href="https://support.apple.com/da-dk/guide/mac-help/mh27448/mac">Få din Mac til at læse tekst på skærmen op</a></li>
+          <li><a href="https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng#:~:text=The%20information%20shall%20be%20made%20available%20to%20the%20public%20in%20written%20and%20oral%20format">Directive (EU) 2019/882</a></li>
+        </ul>
+      </section>
+
+    </main>
+
+    <wc-speech id="speech" voice="speech-voice" rate="speech-rate" target="#speech-target" prefer-voice="Microsoft" scroll hidden>
+      <section class="speech-bar" aria-labelledby="speech-heading">
+        <h2 id="speech-heading" lang="en" class="visually-hidden">Speech tool controls</h2>
+
+        <button type="button" commandfor="speech" command="--toggle-options" aria-controls="speech-options" aria-expanded="false">
+          ⚙️ Voice options
+        </button>
+
+        <p class="speech-controls">
+          <button type="button" commandfor="speech" command="--previous-sentence" aria-label="Previous sentence">⏪</button>
+          <button type="button" commandfor="speech" command="--playpause">
+            <span data-speech-face="play" aria-hidden="true">▶️</span>
+            <span data-speech-face="pause" aria-hidden="true" hidden>⏸️</span>
+          </button>
+          <button type="button" commandfor="speech" command="--next-sentence" aria-label="Next sentence">⏩</button>
+        </p>
+
+        <button type="button" commandfor="speech" command="--hide-controls" aria-label="Hide speech tool">✕</button>
+
+        <p class="visually-hidden" role="status"></p>
+
+        <div id="speech-options" popover hidden>
+          <p>
+            <label for="speech-voice">Choose a voice</label>
+            <br>
+            <select id="speech-voice"></select>
+          </p>
+          <p>
+            <small>
+              Missing voices? 
+              Here is for <a href="https://support.microsoft.com/da-dk/education/download-languages-and-voices-for-immersive-reader-read-mode-and-read-aloud">Windows</a>
+              and <a href="https://support.apple.com/da-dk/guide/mac-help/mh27448/mac">Mac</a>.
+            </small>
+          </p>
+          <p>
+            <label for="speech-rate">Speed</label>
+            <br>
+            <input id="speech-rate" type="range" min="0" max="3.5" step="0.5" value="1" class="w-100">
+            <span class="rate-ticks" aria-hidden="true">
+              <span>Slow</span>
+              <span></span>
+              <span>Normal</span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span>Fast</span>
+            </span>
+          </p>
+          <p>
+            <label>
+              <input id="speech-scroll" type="checkbox" data-speech-scroll>
+              Scroll to follow while reading
+            </label>
+          </p>
+        </div>
+      </section>
+    </wc-speech>
+
+    <script type="module" src="../../wc-speech.js"></script>
+  </body>
+</html>
