@@ -1,20 +1,29 @@
 {
-
   "name": "wc-speech",
-
+  "version": "0.1.0-preview.0",
+  "description": "Preview web component: in-page speech tool for readable content via the Web Speech API",
   "private": true,
-
-  "scripts": {
-
-    "start": "serve . -l 3000"
-
+  "license": "MIT",
+  "author": "Martin Hintzmann",
+  "homepage": "https://hintzmann.github.io/wc-speech/demo/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hintzmann/wc-speech.git"
   },
-
+  "bugs": {
+    "url": "https://github.com/Hintzmann/wc-speech/issues"
+  },
+  "keywords": [
+    "web-component",
+    "speech-synthesis",
+    "text-to-speech",
+    "accessibility",
+    "wc-speech"
+  ],
+  "scripts": {
+    "start": "serve . -l 3000"
+  },
   "devDependencies": {
-
     "serve": "^14.2.4"
-
   }
-
 }
-
