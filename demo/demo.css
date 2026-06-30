@@ -1,0 +1,49 @@
+@layer demo;
+
+@layer demo {
+  :root {
+    color-scheme: light dark;
+    --content-width: 70ch;
+  }
+
+  body {
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+    background-color: Canvas;
+    color: CanvasText;
+  }
+
+  main {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .image {
+    float: right;
+    margin-left: 1rem;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  #markup h3 {
+    font-size: 1rem;
+    margin-block: 1.5rem 0.5rem;
+  }
+
+  #markup h3:first-of-type {
+    margin-block-start: 1rem;
+  }
+
+  .code {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  button {
+    &[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}

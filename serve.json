@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    { "source": "/", "destination": "/demo/" }
+  ],
+  "unlisted": [
+    "/node_modules/**",
+    "/.cursor/**",
+    "/.git/**"
+  ]
+}

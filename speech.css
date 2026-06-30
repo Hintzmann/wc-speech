@@ -1,0 +1,148 @@
+@layer tokens, components, helpers;
+
+@layer tokens {
+  :root {
+    --gray-text: GrayText;
+    --speech-word-bg: Mark;
+    --speech-word-text: MarkText;
+    --speech-sentence-bg: SelectedItem;
+    --speech-sentence-text: SelectedItemText;
+    --speech-bar-block-size: 4rem;
+  }
+}
+
+@layer components {
+  body:has(wc-speech:not([hidden])) {
+    padding-block-start: var(--speech-bar-block-size);
+  }
+
+  .speech-show {
+    inset-block-start: calc(env(safe-area-inset-top) + 0.5rem);
+    inset-inline-end: 0.5rem;
+    position: fixed;
+    z-index: 10;
+  }
+
+  wc-speech:not([hidden]) {
+    background: Canvas;
+    border-block-end: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+    box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 15%);
+    color: CanvasText;
+    display: block;
+    inset-block-start: 0;
+    inset-inline: 0;
+    padding: calc(env(safe-area-inset-top) + 0.5rem) 1rem 0.5rem;
+    position: fixed;
+    z-index: 20;
+  }
+
+  .speech-bar {
+    align-items: center;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr auto 1fr;
+    margin-inline: auto;
+  }
+
+  .speech-bar > button:first-of-type {
+    justify-self: start;
+  }
+
+  .speech-bar > button:last-of-type {
+    justify-self: end;
+  }
+
+  .speech-controls {
+    display: flex;
+    gap: 0.5rem;
+    justify-self: center;
+    margin: 0;
+  }
+
+  #speech-options {
+    background: Canvas;
+    border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 20%);
+    color: CanvasText;
+    inline-size: min(23rem, calc(100vw - 2rem));
+    inset-block-start: calc(env(safe-area-inset-top) + var(--speech-bar-block-size));
+    inset-inline-end: 1rem;
+    margin: 0;
+    padding: 1rem;
+    position: fixed;
+  }
+
+  #speech-options:is(:popover-open, .\:popover-open) {
+    display: block;
+  }
+
+  ::highlight(speech-sentence) {
+    background: var(--speech-sentence-bg, SelectedItem);
+    color: var(--speech-sentence-text, SelectedItemText);
+  }
+
+  ::highlight(speech-word) {
+    background: var(--speech-word-bg, Mark);
+    color: var(--speech-word-text, MarkText);
+  }
+
+  [data-speech-synth-highlight="sentence"] {
+    background: var(--speech-sentence-bg, SelectedItem);
+    color: var(--speech-sentence-text, SelectedItemText);
+  }
+
+  [data-speech-synth-highlight="word"] {
+    background: var(--speech-word-bg, Mark);
+    color: var(--speech-word-text, MarkText);
+  }
+
+  [data-speech-synth-highlight="element"] {
+    outline: 10px solid var(--speech-word-bg, Mark);
+  }
+
+  .rate-ticks {
+    color: var(--gray-text, GrayText);
+    display: flex;
+    font-size: 0.75rem;
+    justify-content: space-between;
+    margin-block-start: 0.25rem;
+    margin-inline: .6rem .4rem;
+
+    span {
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+      inline-size: 0;
+      min-height: 1.5rem;
+      position: relative;
+      text-align: center;
+      white-space: nowrap;
+
+      &::before {
+        background: currentColor;
+        content: "";
+        display: block;
+        height: 0.5rem;
+        margin: 0 auto 0.25rem;
+        opacity: 0.7;
+        width: 1px;
+      }
+    }
+  }
+}
+
+@layer helpers {
+  .visually-hidden {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .w-100 {
+    width: 100%;
+  }
+}
