@@ -55,4 +55,15 @@
     position: absolute;
     white-space: nowrap;
   }
+
+  [data-speech-error][commandfor] {
+    color: #b00020;
+    margin-block: 0.5rem 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-speech-error][commandfor] {
+      color: #ff8a80;
+    }
+  }
 }
