@@ -3,6 +3,7 @@
   "version": "0.2.0-preview.0",
   "description": "Preview web component: in-page speech tool for readable content via the Web Speech API",
   "private": true,
+  "type": "module",
   "license": "MIT",
   "author": "Martin Hintzmann",
   "homepage": "https://hintzmann.github.io/wc-speech/demo/",
@@ -22,9 +23,11 @@
   ],
   "scripts": {
     "build": "terser wc-speech.js -o wc-speech.min.js -c -m --module",
-    "start": "serve . -l 3000"
+    "start": "serve . -l 3000",
+    "test": "node --test test/**/*.test.js"
   },
   "devDependencies": {
+    "jsdom": "^26.1.0",
     "serve": "^14.2.4",
     "terser": "^5.44.0"
   }
