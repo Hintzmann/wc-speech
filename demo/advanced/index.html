@@ -6,6 +6,7 @@
     <title>Speech tool demo (advanced)</title>
     <meta name="description" content="A small web component that adds an in-page speech tool for sighted users without text-to-speech software installed. Built on the Web Speech API. Not a replacement for assistive technology.">
     <link rel="stylesheet" href="../../speech.css">
+    <link rel="stylesheet" href="../../speech-advanced.css">
     <link rel="stylesheet" href="../demo.css">
   </head>
   <body>
@@ -172,10 +173,12 @@
 
         <h3>Expected markup</h3>
         <p>
-          Inside <code>&lt;wc-speech&gt;</code>, the component expects a voice
-          <code>select</code>, a rate <code>input</code>, a <code>[popover]</code> options
-          panel, command buttons with <code>commandfor</code> and <code>command</code>, and
-          optionally <code>[data-speech-scroll]</code> and <code>[role="status"]</code>.
+          Inside <code>&lt;wc-speech&gt;</code>, wire voice, speed, and scroll with
+          <code>data-speech-*</code> hooks on a <code>select</code>, form control, and
+          checkbox. Add a <code>[popover]</code> options panel, command buttons with
+          <code>commandfor</code> and <code>command</code>, and optionally
+          <code>[role="status"]</code>. Play/pause buttons may sit outside
+          <code>&lt;wc-speech&gt;</code>; adjustment controls should stay inside.
           See the toolbar on this page, or the <a href="../simple/">simple demo</a> for a one-button setup.
         </p>
 
@@ -191,8 +194,7 @@
 &lt;/button&gt;
 
 &lt;wc-speech 
-  id="speech" voice="speech-voice" rate="speech-rate" 
-  target="#article" prefer-voice="Microsoft" hidden&gt;
+  id="speech" target="#article" prefer-voice="Microsoft" hidden&gt;
 
   &lt;button type="button" commandfor="speech" command="--playpause"&gt;
     &lt;span data-speech-face="play"&gt;Play&lt;/span&gt;
@@ -205,9 +207,9 @@
   &lt;button type="button" commandfor="speech" 
     command="--next-sentence"&gt;Next&lt;/button&gt;
 
-  &lt;select id="speech-voice"&gt;&lt;/select&gt;
+  &lt;select data-speech-voice&gt;&lt;/select&gt;
 
-  &lt;input id="speech-rate" type="range" min="0" max="3.5" step="0.5" value="1"&gt;
+  &lt;input data-speech-rate type="range" min="0" max="3.5" step="0.5" value="1"&gt;
 &lt;/wc-speech&gt;
 
 &lt;article id="article" lang="en"&gt;
@@ -220,11 +222,14 @@
           <dt><code>target</code></dt>
           <dd>CSS selector for the content that should be read. Put controls outside the target when you can. <code>wc-speech</code> elements inside the target are skipped automatically.</dd>
 
-          <dt><code>voice</code></dt>
-          <dd>ID of a <code>select</code> element that should be populated with available voices.</dd>
+          <dt><code>data-speech-voice</code></dt>
+          <dd>On a <code>&lt;select&gt;</code> inside <code>&lt;wc-speech&gt;</code>. Populated with available voices. Use <code>prefer-voice</code> on the component to auto-select a matching voice.</dd>
 
-          <dt><code>rate</code></dt>
-          <dd>ID of a range input used for speech speed. The current demo uses <code>0</code> to <code>3.5</code>.</dd>
+          <dt><code>data-speech-rate</code></dt>
+          <dd>On a form control inside <code>&lt;wc-speech&gt;</code> whose <code>value</code> is a number — for example <code>input type="range"</code>, <code>input type="number"</code>, or <code>select</code> with numeric option values. Read when each sentence is spoken; values are clamped between <code>0.1</code> and <code>10</code>.</dd>
+
+          <dt><code>data-speech-scroll</code></dt>
+          <dd>On <code>&lt;input type="checkbox"&gt;</code> inside <code>&lt;wc-speech&gt;</code>. Toggles the component <code>scroll</code> attribute when checked.</dd>
 
           <dt><code>prefer-voice</code></dt>
           <dd>Optional text used to prefer matching voice names or voice URIs when the component auto-selects a voice, for example <code>Microsoft</code> for system voices on Windows. Users can still choose another voice manually.</dd>
@@ -310,7 +315,7 @@
 
     </main>
 
-    <wc-speech id="speech" voice="speech-voice" rate="speech-rate" target="#speech-target" prefer-voice="Microsoft" scroll hidden>
+    <wc-speech id="speech" target="#speech-target" prefer-voice="Microsoft" scroll hidden>
       <section class="speech-bar" aria-labelledby="speech-heading">
         <h2 id="speech-heading" lang="en" class="visually-hidden">Speech tool controls</h2>
 
@@ -335,7 +340,7 @@
           <p>
             <label for="speech-voice">Choose a voice</label>
             <br>
-            <select id="speech-voice"></select>
+            <select id="speech-voice" data-speech-voice></select>
           </p>
           <p>
             <small>
@@ -347,7 +352,7 @@
           <p>
             <label for="speech-rate">Speed</label>
             <br>
-            <input id="speech-rate" type="range" min="0" max="3.5" step="0.5" value="1" class="w-100">
+            <input id="speech-rate" data-speech-rate type="range" min="0" max="3.5" step="0.5" value="1" class="w-100">
             <span class="rate-ticks" aria-hidden="true">
               <span>Slow</span>
               <span></span>

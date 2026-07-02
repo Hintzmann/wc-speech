@@ -22,7 +22,8 @@ Open [http://localhost:3000/demo/](http://localhost:3000/demo/) and choose **sim
 Copy these files into your project:
 
 - `wc-speech.js` — the component (required)
-- `speech.css` — toolbar, highlights, and popover styles (required)
+- `speech.css` — sentence and word highlights (required)
+- `speech-advanced.css` — optional fixed speech bar, popover, and toolbar helpers (advanced integration only)
 
 Minimal wiring:
 
@@ -52,14 +53,14 @@ Set `lang` on `<html>` and on any section that uses another language.
 
 ## Expected markup
 
-Inside `<wc-speech>`, the component looks for:
+Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside** `<wc-speech>`. Play/pause and navigation buttons may live anywhere, wired with `commandfor` and `command`.
 
 | Hook | Purpose |
 | --- | --- |
-| `select` referenced by the `voice` attribute | Populated with available voices |
-| `input[type="range"]` referenced by the `rate` attribute | Speech speed |
-| `[popover]` | Voice and speed options panel |
+| `[data-speech-voice]` | `<select>` populated with available voices |
+| `[data-speech-rate]` | Form control with a numeric `.value` (range, select, or number input) for speech speed |
 | `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
+| `[popover]` | Voice and speed options panel |
 | `[role="status"]` | Optional live region for Speaking / Paused / Finished |
 | `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, etc. |
 | `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside the play/pause button; the component toggles visibility |
@@ -72,7 +73,7 @@ See `demo/advanced/index.html` for a complete toolbar example.
 - **Unsupported browsers** — controls are disabled when `speechSynthesis` is unavailable; there is no user-visible message yet.
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
 - **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or element outline.
-- **CSS IDs** — demo styles use `#speech-options`; use one speech tool per page or adjust selectors for multiple instances.
+- **CSS IDs** — advanced styles in `speech-advanced.css` use `#speech-options`; use one speech tool per page or adjust selectors for multiple instances.
 - **No automated tests yet** — manual testing only.
 
 ## Browser support
@@ -89,9 +90,7 @@ Optional enhancements:
 | Attribute | Description |
 | --- | --- |
 | `target` | CSS selector for content to read |
-| `voice` | ID of voice `<select>` |
-| `rate` | ID of speed range input |
-| `prefer-voice` | Prefer voice names/URIs containing this text |
+| `prefer-voice` | Prefer voice names/URIs containing this text when auto-selecting in `[data-speech-voice]` |
 | `scroll` | Follow along while reading (honours `prefers-reduced-motion`) |
 | `code-lang` | Language for `pre` / `code` blocks (default `en`) |
 | `label-play`, `label-pause` | Accessible name for play/pause (default English); visible label comes from your `data-speech-face` markup |

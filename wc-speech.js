@@ -1,5 +1,5 @@
 class WcSpeech extends HTMLElement {
-  static observedAttributes = ['prefer-voice', 'voice', 'rate', 'target', 'scroll', 'label-play', 'label-pause'];
+  static observedAttributes = ['prefer-voice', 'target', 'scroll', 'label-play', 'label-pause'];
 
   static #strings = {
     'label-play': 'Play',
@@ -10,7 +10,7 @@ class WcSpeech extends HTMLElement {
   };
 
   #voiceSelect;
-  #rateInput;
+  #rateControl;
   #optionsPopover;
   #statusRegion;
   #scrollCheckbox;
@@ -44,11 +44,9 @@ class WcSpeech extends HTMLElement {
   connectedCallback() {
     this.#cacheCommandButtons();
     this.#applyButtonTitles();
-    this.#voiceSelect = this.#resolveVoiceSelect();
-    this.#rateInput = this.#resolveRateInput();
+    this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
     this.#statusRegion = this.#resolveStatusRegion();
-    this.#scrollCheckbox = this.#resolveScrollCheckbox();
     this.#supportsSpeech = this.#supportsSpeechSynthesis();
 
     if (this.#scrollCheckbox) {
@@ -104,14 +102,6 @@ class WcSpeech extends HTMLElement {
       return;
     }
 
-    if (name === 'voice') {
-      this.#voiceSelect = this.#resolveVoiceSelect();
-    }
-
-    if (name === 'rate') {
-      this.#rateInput = this.#resolveRateInput();
-    }
-
     if (name === 'scroll' && this.#scrollCheckbox) {
       this.#scrollCheckbox.checked = this.hasAttribute('scroll');
     }
@@ -120,7 +110,7 @@ class WcSpeech extends HTMLElement {
       this.#updateControlState();
     }
 
-    if (name === 'prefer-voice' || name === 'voice') {
+    if (name === 'prefer-voice') {
       this.#populateVoiceList();
     }
   }
@@ -213,7 +203,7 @@ class WcSpeech extends HTMLElement {
 
   #setControlsDisabled(disabled) {
     this.#voiceSelect?.toggleAttribute('disabled', disabled);
-    this.#rateInput?.toggleAttribute('disabled', disabled);
+    this.#rateControl?.toggleAttribute('disabled', disabled);
     this.#scrollCheckbox?.toggleAttribute('disabled', disabled);
     for (const button of this.#commandButtons.values()) {
       button.toggleAttribute('disabled', disabled);
@@ -245,7 +235,7 @@ class WcSpeech extends HTMLElement {
     const next = this.#buttonForCommand('--next-sentence');
 
     this.#voiceSelect?.toggleAttribute('disabled', !this.#supportsSpeech);
-    this.#rateInput?.toggleAttribute('disabled', !this.#supportsSpeech);
+    this.#rateControl?.toggleAttribute('disabled', !this.#supportsSpeech);
     this.#scrollCheckbox?.toggleAttribute('disabled', !this.#supportsSpeech);
     playPause?.toggleAttribute('disabled', !this.#supportsSpeech);
     previous?.toggleAttribute('disabled', !isActive || this.#nodeIndex <= 0);
@@ -286,22 +276,48 @@ class WcSpeech extends HTMLElement {
     button.setAttribute('title', label);
   }
 
-  #resolveVoiceSelect() {
-    const voiceId = this.getAttribute('voice');
-    return voiceId ? document.getElementById(voiceId) : null;
+  #resolveControls() {
+    this.#voiceSelect = this.#querySpeechHook(
+      '[data-speech-voice]',
+      '[data-speech-voice]',
+      (element) => element instanceof HTMLSelectElement,
+      'Expected a <select> element.',
+    );
+    this.#rateControl = this.#querySpeechHook(
+      '[data-speech-rate]',
+      '[data-speech-rate]',
+      (element) => 'value' in element,
+      'Expected a form control with a numeric value (for example <select>, <input type="range">, or <input type="number">).',
+    );
+    this.#scrollCheckbox = this.#querySpeechHook(
+      '[data-speech-scroll]',
+      '[data-speech-scroll]',
+      (element) => element instanceof HTMLInputElement && element.type === 'checkbox',
+      'Expected <input type="checkbox">.',
+    );
   }
 
-  #resolveRateInput() {
-    const rateId = this.getAttribute('rate');
-    return rateId ? document.getElementById(rateId) : null;
+  #querySpeechHook(selector, hookName, validate, invalidMessage) {
+    const matches = this.querySelectorAll(selector);
+    if (matches.length === 0) {
+      return null;
+    }
+
+    if (matches.length > 1) {
+      console.warn(`wc-speech: Multiple ${hookName} hooks found; using the first.`);
+    }
+
+    const element = matches[0];
+    if (!validate(element)) {
+      console.warn(`wc-speech: Invalid ${hookName} hook. ${invalidMessage}`);
+      return null;
+    }
+
+    return element;
   }
 
   #resolveStatusRegion() {
     return this.querySelector('[role="status"]');
-  }
-
-  #resolveScrollCheckbox() {
-    return this.querySelector('[data-speech-scroll]');
   }
 
   #announce(message) {
@@ -454,7 +470,7 @@ class WcSpeech extends HTMLElement {
   }
 
   #rate() {
-    const rate = Number.parseFloat(this.#rateInput?.value);
+    const rate = Number.parseFloat(this.#rateControl?.value);
     if (!Number.isFinite(rate)) {
       return 1;
     }
