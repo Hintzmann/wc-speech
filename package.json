@@ -1,7 +1,7 @@
 {
   "name": "wc-speech",
-  "version": "0.2.0-preview.0",
-  "description": "Preview web component: in-page speech tool for readable content via the Web Speech API",
+  "version": "1.0.0-rc.1",
+  "description": "Web component: in-page speech tool for readable content via the Web Speech API",
   "private": true,
   "type": "module",
   "license": "MIT",

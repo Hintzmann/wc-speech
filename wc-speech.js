@@ -90,7 +90,7 @@ class WcSpeech extends HTMLElement {
     this.#clearKeepAlive();
     this.#cancelScheduledScroll();
 
-    if (this.#supportsSpeech) {
+    if (this.#supportsSpeech && 'speechSynthesis' in window) {
       speechSynthesis.removeEventListener('voiceschanged', this.#onVoicesChanged);
       speechSynthesis.cancel();
     }
