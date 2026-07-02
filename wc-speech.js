@@ -9,6 +9,8 @@ class WcSpeech extends HTMLElement {
     'status-finished': 'Finished',
   };
 
+  static #instance = null;
+
   #voiceSelect;
   #rateControl;
   #optionsPopover;
@@ -32,6 +34,7 @@ class WcSpeech extends HTMLElement {
   #lastSentenceStart = -1;
   #lastSentenceEnd = -1;
   #supportsSpeech = false;
+  #registered = false;
   #paused = false;
   #speakId = 0;
   #keepAliveTimer = null;
@@ -45,6 +48,77 @@ class WcSpeech extends HTMLElement {
   #onScrollToggle = () => this.toggleAttribute('scroll', Boolean(this.#scrollCheckbox?.checked));
 
   connectedCallback() {
+    if (WcSpeech.#instance && WcSpeech.#instance !== this) {
+      this.#markAsDuplicateInstance();
+      return;
+    }
+
+    WcSpeech.#instance = this;
+    this.#registered = true;
+    this.#activate();
+  }
+
+  disconnectedCallback() {
+    if (!this.#registered) {
+      this.removeAttribute('data-speech-blocked');
+      return;
+    }
+
+    this.removeEventListener('command', this);
+    this.#optionsPopover?.removeEventListener('toggle', this.#onOptionsToggle);
+    this.#scrollCheckbox?.removeEventListener('change', this.#onScrollToggle);
+    document.removeEventListener('pointerdown', this.#onPointerDown, { capture: true });
+    document.removeEventListener('click', this.#onCommandButtonClick);
+
+    this.#speakId += 1;
+    this.#clearKeepAlive();
+    this.#cancelScheduledScroll();
+
+    if (this.#supportsSpeech) {
+      speechSynthesis.removeEventListener('voiceschanged', this.#onVoicesChanged);
+      speechSynthesis.cancel();
+    }
+
+    this.#clearHighlight();
+    this.classList.remove('speaking');
+
+    if (this.#sentenceHighlight) {
+      globalThis.CSS?.highlights?.delete('speech-sentence');
+    }
+    if (this.#wordHighlight) {
+      globalThis.CSS?.highlights?.delete('speech-word');
+    }
+
+    WcSpeech.#instance = null;
+    this.#registered = false;
+
+    const next = document.querySelector('wc-speech[data-speech-blocked="duplicate"]');
+    if (next instanceof WcSpeech) {
+      WcSpeech.#instance = next;
+      next.#registered = true;
+      next.#activate();
+    }
+  }
+
+  #markAsDuplicateInstance() {
+    this.#registered = false;
+    console.warn('wc-speech: Only one <wc-speech> element is allowed per page. This instance is disabled.');
+    this.setAttribute('data-speech-blocked', 'duplicate');
+    this.#cacheCommandButtons();
+    this.#applyButtonTitles();
+    this.#resolveControls();
+    this.#optionsPopover = this.#resolveOptionsPopover();
+    this.#statusRegion = this.#resolveStatusRegion();
+
+    if (this.#scrollCheckbox) {
+      this.#scrollCheckbox.checked = this.hasAttribute('scroll');
+    }
+
+    this.#setControlsDisabled(true);
+  }
+
+  #activate() {
+    this.removeAttribute('data-speech-blocked');
     this.#cacheCommandButtons();
     this.#applyButtonTitles();
     this.#resolveControls();
@@ -86,35 +160,8 @@ class WcSpeech extends HTMLElement {
     this.#updateControlState();
   }
 
-  disconnectedCallback() {
-    this.removeEventListener('command', this);
-    this.#optionsPopover?.removeEventListener('toggle', this.#onOptionsToggle);
-    this.#scrollCheckbox?.removeEventListener('change', this.#onScrollToggle);
-    document.removeEventListener('pointerdown', this.#onPointerDown, { capture: true });
-    document.removeEventListener('click', this.#onCommandButtonClick);
-
-    this.#speakId += 1;
-    this.#clearKeepAlive();
-    this.#cancelScheduledScroll();
-
-    if (this.#supportsSpeech) {
-      speechSynthesis.removeEventListener('voiceschanged', this.#onVoicesChanged);
-      speechSynthesis.cancel();
-    }
-
-    this.#clearHighlight();
-    this.classList.remove('speaking');
-
-    if (this.#sentenceHighlight) {
-      globalThis.CSS?.highlights?.delete('speech-sentence');
-    }
-    if (this.#wordHighlight) {
-      globalThis.CSS?.highlights?.delete('speech-word');
-    }
-  }
-
   attributeChangedCallback(name) {
-    if (!this.isConnected) {
+    if (!this.isConnected || !this.#registered) {
       return;
     }
 
@@ -132,7 +179,7 @@ class WcSpeech extends HTMLElement {
   }
 
   handleEvent(event) {
-    if (event.type !== 'command') {
+    if (event.type !== 'command' || !this.#registered) {
       return;
     }
 
@@ -140,6 +187,10 @@ class WcSpeech extends HTMLElement {
   }
 
   #handleCommandButtonClick(event) {
+    if (!this.#registered) {
+      return;
+    }
+
     const button = event.target.closest?.('button[commandfor][command]');
     if (!button || button.getAttribute('commandfor') !== this.id) {
       return;
@@ -159,7 +210,7 @@ class WcSpeech extends HTMLElement {
   }
 
   #runCommand(command, source) {
-    if (!this.#supportsSpeech) {
+    if (!this.#registered || !this.#supportsSpeech) {
       return;
     }
 

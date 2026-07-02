@@ -96,7 +96,7 @@ document.querySelector('wc-speech').addEventListener('sentence-change', (event) 
 
 ## Known limits (preview)
 
-- **One instance per page** — `speechSynthesis` and `CSS.highlights` are shared globally.
+- **One instance per page (enforced)** — only the first connected `<wc-speech>` is active. Additional instances are disabled (`data-speech-blocked="duplicate"`) and log a console warning. When the active instance is removed, the next blocked instance is promoted automatically.
 - **Unsupported browsers** — controls are disabled when `speechSynthesis` is unavailable; there is no user-visible message yet.
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
 - **Long utterances** — a keep-alive heartbeat prevents Chrome from silently cutting off speech after ~15 seconds on a single utterance.
