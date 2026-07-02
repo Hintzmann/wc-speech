@@ -16,7 +16,6 @@ class WcSpeech extends HTMLElement {
   #optionsPopover;
   #statusRegion;
   #scrollCheckbox;
-  #commandButtons = new Map();
   #segmenters = new Map();
   #target;
   #voices = [];
@@ -104,7 +103,6 @@ class WcSpeech extends HTMLElement {
     this.#registered = false;
     console.warn('wc-speech: Only one <wc-speech> element is allowed per page. This instance is disabled.');
     this.setAttribute('data-speech-blocked', 'duplicate');
-    this.#cacheCommandButtons();
     this.#applyButtonTitles();
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
@@ -119,7 +117,6 @@ class WcSpeech extends HTMLElement {
 
   #activate() {
     this.removeAttribute('data-speech-blocked');
-    this.#cacheCommandButtons();
     this.#applyButtonTitles();
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
@@ -272,26 +269,29 @@ class WcSpeech extends HTMLElement {
     this.#voiceSelect?.toggleAttribute('disabled', disabled);
     this.#rateControl?.toggleAttribute('disabled', disabled);
     this.#scrollCheckbox?.toggleAttribute('disabled', disabled);
-    for (const button of this.#commandButtons.values()) {
+    for (const button of this.#commandButtons()) {
       button.toggleAttribute('disabled', disabled);
     }
   }
 
-  #cacheCommandButtons() {
-    this.#commandButtons.clear();
-    for (const button of document.querySelectorAll('button[commandfor][command]')) {
-      if (button.getAttribute('commandfor') !== this.id) {
-        continue;
-      }
-      const command = button.getAttribute('command');
-      if (!this.#commandButtons.has(command)) {
-        this.#commandButtons.set(command, button);
-      }
+  #commandButtons() {
+    if (!this.id) {
+      return [];
     }
+
+    return document.querySelectorAll(
+      `button[commandfor="${CSS.escape(this.id)}"][command]`,
+    );
   }
 
   #buttonForCommand(command) {
-    return this.#commandButtons.get(command) ?? null;
+    if (!this.id) {
+      return null;
+    }
+
+    return document.querySelector(
+      `button[commandfor="${CSS.escape(this.id)}"][command="${CSS.escape(command)}"]`,
+    );
   }
 
   #updateControlState() {
@@ -405,7 +405,7 @@ class WcSpeech extends HTMLElement {
   }
 
   #applyButtonTitles() {
-    for (const button of this.#commandButtons.values()) {
+    for (const button of this.#commandButtons()) {
       const label = button.getAttribute('aria-label');
       if (label && !button.hasAttribute('title')) {
         button.setAttribute('title', label);
