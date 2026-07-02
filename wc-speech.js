@@ -34,6 +34,9 @@ class WcSpeech extends HTMLElement {
   #supportsSpeech = false;
   #paused = false;
   #speakId = 0;
+  #keepAliveTimer = null;
+  #scrollRaf = 0;
+  #scrollTarget = null;
   #optionsOpenBeforePointerDown = false;
   #onVoicesChanged = () => this.#populateVoiceList();
   #onCommandButtonClick = (event) => this.#handleCommandButtonClick(event);
@@ -89,12 +92,25 @@ class WcSpeech extends HTMLElement {
     this.#scrollCheckbox?.removeEventListener('change', this.#onScrollToggle);
     document.removeEventListener('pointerdown', this.#onPointerDown, { capture: true });
     document.removeEventListener('click', this.#onCommandButtonClick);
+
+    this.#speakId += 1;
+    this.#clearKeepAlive();
+    this.#cancelScheduledScroll();
+
     if (this.#supportsSpeech) {
       speechSynthesis.removeEventListener('voiceschanged', this.#onVoicesChanged);
       speechSynthesis.cancel();
     }
-    globalThis.CSS?.highlights?.delete('speech-sentence');
-    globalThis.CSS?.highlights?.delete('speech-word');
+
+    this.#clearHighlight();
+    this.classList.remove('speaking');
+
+    if (this.#sentenceHighlight) {
+      globalThis.CSS?.highlights?.delete('speech-sentence');
+    }
+    if (this.#wordHighlight) {
+      globalThis.CSS?.highlights?.delete('speech-word');
+    }
   }
 
   attributeChangedCallback(name) {
@@ -355,6 +371,50 @@ class WcSpeech extends HTMLElement {
     return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   }
 
+  #clearKeepAlive() {
+    if (this.#keepAliveTimer !== null) {
+      clearInterval(this.#keepAliveTimer);
+      this.#keepAliveTimer = null;
+    }
+  }
+
+  #startKeepAlive() {
+    this.#clearKeepAlive();
+    // Chrome silently stops speech ~15s into long utterances without a heartbeat.
+    this.#keepAliveTimer = setInterval(() => {
+      if (!this.classList.contains('speaking') || this.#paused) {
+        return;
+      }
+      if (speechSynthesis.speaking && !speechSynthesis.pending) {
+        speechSynthesis.pause();
+        speechSynthesis.resume();
+      }
+    }, 10_000);
+  }
+
+  #scheduleFollowInView(target) {
+    this.#scrollTarget = target;
+    if (this.#scrollRaf) {
+      return;
+    }
+    this.#scrollRaf = requestAnimationFrame(() => {
+      this.#scrollRaf = 0;
+      const scrollTarget = this.#scrollTarget;
+      this.#scrollTarget = null;
+      if (scrollTarget) {
+        this.#followInView(scrollTarget);
+      }
+    });
+  }
+
+  #cancelScheduledScroll() {
+    if (this.#scrollRaf) {
+      cancelAnimationFrame(this.#scrollRaf);
+      this.#scrollRaf = 0;
+    }
+    this.#scrollTarget = null;
+  }
+
   #followInView(target) {
     if (!this.#followsScroll() || !target?.getBoundingClientRect) {
       return;
@@ -407,6 +467,8 @@ class WcSpeech extends HTMLElement {
     }
 
     this.#speakId += 1;
+    this.#clearKeepAlive();
+    this.#cancelScheduledScroll();
     speechSynthesis.cancel();
     this.#clearHighlight();
     this.classList.remove('speaking');
@@ -1015,7 +1077,7 @@ class WcSpeech extends HTMLElement {
       this.#wordHighlight?.clear();
       this.#sentenceHighlight?.clear();
       this.#setHighlightedElement(element, this.#syntheticHighlightType(element));
-      this.#followInView(element);
+      this.#scheduleFollowInView(element);
       return;
     }
 
@@ -1023,14 +1085,14 @@ class WcSpeech extends HTMLElement {
     const range = this.#entryRange(entry);
     if (!this.#wordHighlight || !this.#sentenceHighlight || !range) {
       this.#setHighlightedElement(parent);
-      this.#followInView(range ?? parent);
+      this.#scheduleFollowInView(range ?? parent);
       return;
     }
 
     this.#setHighlightedElement(null);
     this.#wordHighlight.clear();
     this.#setSentenceHighlight(textNode, range);
-    this.#followInView(range);
+    this.#scheduleFollowInView(range);
   }
 
   #playpause() {
@@ -1048,6 +1110,7 @@ class WcSpeech extends HTMLElement {
     } else {
       this.#paused = true;
       this.#speakId += 1;
+      this.#clearKeepAlive();
       speechSynthesis.cancel();
       this.#announce(this.#text('status-paused'));
       this.#updateControlState();
@@ -1125,6 +1188,7 @@ class WcSpeech extends HTMLElement {
   #speakEntry(speakId) {
     if (speakId !== this.#speakId || this.#nodeIndex >= this.#nodeList.length) {
       if (speakId === this.#speakId) {
+        this.#clearKeepAlive();
         this.#clearHighlight();
         this.classList.remove('speaking');
         this.#paused = false;
@@ -1152,6 +1216,7 @@ class WcSpeech extends HTMLElement {
     }
 
     this.#highlightEntry(entry);
+    this.#startKeepAlive();
 
     utterance.addEventListener('end', () => {
       if (speakId !== this.#speakId) {
@@ -1166,6 +1231,7 @@ class WcSpeech extends HTMLElement {
       if (speakId !== this.#speakId) {
         return;
       }
+      this.#clearKeepAlive();
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
@@ -1176,6 +1242,9 @@ class WcSpeech extends HTMLElement {
         return;
       }
 
+      const reduceMotion = this.#prefersReducedMotion();
+      const offset = entry.start ?? 0;
+
       if (this.#nodeParent.has(textNode)) {
         const parent = this.#nodeParent.get(textNode);
         this.#wordHighlight?.clear();
@@ -1185,36 +1254,43 @@ class WcSpeech extends HTMLElement {
       }
 
       const parent = textNode.parentElement;
-      const offset = entry.start ?? 0;
       const range = this.#boundaryRange(textNode, event, offset);
       const isSentenceBoundary = event.name === 'sentence';
       const entryRange = this.#entryRange(entry);
-      if (!range) {
-        if (isSentenceBoundary) {
-          return;
-        }
-        if (this.#wordHighlight && this.#sentenceHighlight) {
-          this.#setHighlightedElement(null);
-          this.#wordHighlight.clear();
-          if (entryRange) {
-            this.#setSentenceHighlight(textNode, entryRange);
-          }
-          return;
-        }
-        this.#wordHighlight?.clear();
-        this.#setHighlightedElement(parent);
-        return;
-      }
 
       if (!this.#wordHighlight || !this.#sentenceHighlight) {
         this.#setHighlightedElement(parent);
+        if (isSentenceBoundary) {
+          this.#scheduleFollowInView(entryRange ?? parent);
+        }
         return;
       }
 
       this.#setHighlightedElement(null);
+
       if (isSentenceBoundary) {
         this.#wordHighlight.clear();
-        this.#setSentenceHighlight(textNode, entryRange ?? range);
+        if (entryRange) {
+          this.#setSentenceHighlight(textNode, entryRange);
+        } else if (range) {
+          this.#setSentenceHighlight(textNode, range);
+        }
+        this.#scheduleFollowInView(entryRange ?? parent);
+        return;
+      }
+
+      if (reduceMotion) {
+        if (entryRange) {
+          this.#setSentenceHighlight(textNode, entryRange);
+        }
+        return;
+      }
+
+      if (!range) {
+        this.#wordHighlight.clear();
+        if (entryRange) {
+          this.#setSentenceHighlight(textNode, entryRange);
+        }
         return;
       }
 
@@ -1234,7 +1310,7 @@ class WcSpeech extends HTMLElement {
       }
       this.#wordHighlight.clear();
       this.#wordHighlight.add(wordRange);
-      this.#followInView(wordRange);
+      this.#scheduleFollowInView(wordRange);
     });
 
     if (speechSynthesis.paused) {
