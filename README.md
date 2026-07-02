@@ -32,6 +32,12 @@ Regenerate the minified file after editing the source:
 npm run build
 ```
 
+Run the automated test suite (Node.js built-in test runner + jsdom):
+
+```bash
+npm test
+```
+
 Minimal wiring:
 
 ```html
@@ -105,7 +111,6 @@ document.querySelector('wc-speech').addEventListener('sentence-change', (event) 
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
 - **Long utterances** — a keep-alive heartbeat prevents Chrome from silently cutting off speech after ~15 seconds on a single utterance.
 - **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or, for media (`img`, `video`, `audio`), an element outline. Per-word highlights are suppressed when the user prefers reduced motion; sentence-level highlighting still runs.
-- **No automated tests yet** — manual testing only.
 
 ## Browser support
 

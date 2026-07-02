@@ -1,3 +1,8 @@
+import {
+  fallbackSentenceSegments,
+  mergeAbbreviationSegments,
+} from './wc-speech-segment.js';
+
 class WcSpeech extends HTMLElement {
   static observedAttributes = ['prefer-voice', 'target', 'scroll', 'label-play', 'label-pause'];
 
@@ -16,6 +21,10 @@ class WcSpeech extends HTMLElement {
   };
 
   static #instance = null;
+
+  static _resetInstanceForTests() {
+    WcSpeech.#instance = null;
+  }
 
   #voiceSelect;
   #rateControl;
@@ -1040,10 +1049,10 @@ class WcSpeech extends HTMLElement {
         end: index + segment.length,
       }));
 
-      return this.#mergeAbbreviationSegments(text, segments);
+      return mergeAbbreviationSegments(text, segments);
     }
 
-    return this.#fallbackSentenceSegments(text);
+    return fallbackSentenceSegments(text);
   }
 
   #segmenterFor(lang) {
@@ -1082,48 +1091,9 @@ class WcSpeech extends HTMLElement {
     return segments;
   }
 
-  #mergeAbbreviationSegments(text, segments) {
-    const merged = [];
-
-    for (const segment of segments) {
-      const previous = merged.at(-1);
-      if (previous && this.#endsWithAbbreviation(text.slice(previous.start, previous.end))) {
-        previous.end = segment.end;
-      } else {
-        merged.push({ ...segment });
-      }
-    }
-
-    return merged;
-  }
-
-  #endsWithAbbreviation(text) {
-    const trimmed = text.trimEnd();
-    const initialism = /(?:^|[\s(["'“])(?:\p{L}\.){2,}$/u;
-    const commonAbbreviation = /(?:f\.eks|m\.fl|bl\.a|ca|etc|nr|pkt|fig|dr|prof|mr|mrs|ms|st)\.$/iu;
-    return initialism.test(trimmed) || commonAbbreviation.test(trimmed);
-  }
-
-  #isSentenceBreak(text, index) {
-    if (text[index] !== '.') {
-      return true;
-    }
-
-    let start = index;
-    let end = index + 1;
-    while (start > 0 && /[\p{L}.]/u.test(text[start - 1])) {
-      start -= 1;
-    }
-    while (end < text.length && /[\p{L}.]/u.test(text[end])) {
-      end += 1;
-    }
-
-    return !this.#endsWithAbbreviation(text.slice(start, end));
-  }
-
   #fallbackSentenceRangeAt(textNode, charIndex) {
     const text = textNode.textContent;
-    const segment = this.#fallbackSentenceSegments(text)
+    const segment = fallbackSentenceSegments(text)
       .find(({ start, end }) => charIndex >= start && charIndex < end);
     if (!segment) {
       return null;
@@ -1133,40 +1103,6 @@ class WcSpeech extends HTMLElement {
     range.setStart(textNode, segment.start);
     range.setEnd(textNode, segment.end);
     return range;
-  }
-
-  #fallbackSentenceSegments(text) {
-    const sentenceEnd = /[.!?]/;
-    const sentenceClose = /["')\]}»”’]/;
-    const segments = [];
-    let start = 0;
-
-    for (let i = 0; i < text.length; i += 1) {
-      if (sentenceEnd.test(text[i]) && this.#isSentenceBreak(text, i)) {
-        let end = i + 1;
-        while (end < text.length && sentenceClose.test(text[end])) {
-          end += 1;
-        }
-
-        segments.push({ start, end });
-        start = end;
-        while (start < text.length && /\s/.test(text[start])) {
-          start += 1;
-        }
-      }
-    }
-
-    if (start < text.length) {
-      segments.push({ start, end: text.length });
-    }
-
-    return segments.map((segment) => {
-      let end = segment.end;
-      while (end > segment.start && /\s/.test(text[end - 1])) {
-        end -= 1;
-      }
-      return { start: segment.start, end };
-    }).filter(({ start: segmentStart, end }) => segmentStart < end);
   }
 
   #setSentenceHighlight(textNode, range) {
@@ -1501,3 +1437,5 @@ class WcSpeech extends HTMLElement {
 }
 
 customElements.define('wc-speech', WcSpeech);
+
+export { WcSpeech };
