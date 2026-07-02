@@ -130,18 +130,17 @@
           and word when the browser supports custom highlights.
         </p>
 
-        <h3>Preview / known limits</h3>
+        <h3>Known limits</h3>
         <p>
-          This is an <strong>early preview</strong> for developer feedback. The API and
-          markup contract may change. See also <a href="../../../README.md"><code>README.md</code></a> in the repository root.
+          See also <a href="../../../README.md"><code>README.md</code></a> in the repository root.
         </p>
         <ul>
-          <li>Use <strong>one speech tool per page</strong> — <code>speechSynthesis</code> and <code>CSS.highlights</code> are shared globally.</li>
+          <li><strong>One active instance per page (enforced)</strong> — only the first connected <code>&lt;wc-speech&gt;</code> runs. Additional instances are disabled (<code>data-speech-blocked="duplicate"</code>) until the active one is removed.</li>
           <li>Point <code>target</code> at readable content. <code>wc-speech</code> subtrees are skipped automatically; keep other controls outside the target when you can.</li>
-          <li>When speech synthesis is unsupported, controls are disabled with no message yet.</li>
+          <li>When speech synthesis is unsupported, controls are disabled and a message is shown in <code>[data-speech-error]</code> when present.</li>
           <li><strong>Pause</strong> cancels the current sentence; resume starts that sentence again from the beginning.</li>
           <li>Word highlighting depends on browser, voice, and the Custom Highlight API.</li>
-          <li>No automated tests yet — manual testing only.</li>
+          <li>Automated tests run in CI — run <code>npm test</code> locally before changing speech behaviour.</li>
         </ul>
 
         <h3>Who this is for</h3>

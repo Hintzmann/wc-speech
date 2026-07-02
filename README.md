@@ -1,6 +1,6 @@
 # wc-speech
 
-**Preview** — early release for developer feedback. The API and markup contract may change.
+**v1.0 release candidate** — the markup contract is stabilizing; [open an issue](https://github.com/Hintzmann/wc-speech/issues) if you integrate before final 1.0.0.
 
 A small web component that adds an in-page **speech tool** for sighted users without text-to-speech software installed. Built on the [Web Speech API](https://caniuse.com/speech-synthesis). Not a replacement for assistive technology.
 
@@ -105,7 +105,7 @@ document.querySelector('wc-speech').addEventListener('sentence-change', (event) 
 });
 ```
 
-## Known limits (preview)
+## Known limits
 
 - **One instance per page (enforced)** — only the first connected `<wc-speech>` is active. Additional instances are disabled (`data-speech-blocked="duplicate"`) and log a console warning. When the active instance is removed, the next blocked instance is promoted automatically.
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
@@ -143,7 +143,7 @@ Not spoken: `wc-speech` subtrees, form controls (`select`, `input`, `textarea`, 
 
 ## Feedback
 
-This is a soft launch. [Open an issue](https://github.com/Hintzmann/wc-speech/issues) for bugs, integration feedback, or API naming — especially around markup and browser behaviour.
+[Open an issue](https://github.com/Hintzmann/wc-speech/issues) for bugs, integration feedback, or API naming — especially around markup and browser behaviour.
 
 ## License
 

@@ -2,10 +2,20 @@ import { JSDOM } from 'jsdom';
 
 let dom;
 let componentLoaded = false;
+let activeSpeechMocks;
 
 function applyToGlobal(target, values) {
   for (const [key, value] of Object.entries(values)) {
     target[key] = value;
+  }
+}
+
+export function removeSpeechMocks() {
+  for (const key of ['speechSynthesis', 'SpeechSynthesisUtterance']) {
+    delete globalThis[key];
+    if (globalThis.window) {
+      delete globalThis.window[key];
+    }
   }
 }
 
@@ -86,7 +96,7 @@ export function installSpeechMocks() {
     applyToGlobal(globalThis.window, mocks);
   }
 
-  return {
+  activeSpeechMocks = {
     utterances,
     fireEnd(utterance) {
       utterance.dispatch('end');
@@ -95,6 +105,12 @@ export function installSpeechMocks() {
       utterance.dispatch('error', { error });
     },
   };
+
+  return activeSpeechMocks;
+}
+
+export function speechMocks() {
+  return activeSpeechMocks;
 }
 
 function assignGlobals(window) {
