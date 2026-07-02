@@ -289,6 +289,13 @@
   --speech-sentence-text: SelectedItemText;
 }</code></pre>
 
+        <p>
+          Without the Custom Highlight API, <code>img</code>, <code>video</code>, and
+          <code>audio</code> use an element outline while they are spoken.
+          <code>abbr</code>, <code>time</code>, <code>code</code>, and <code>pre</code>
+          use the sentence background on the element instead, like other inline text.
+        </p>
+
         <h3>Worth knowing</h3>
         <ul>
           <li>The component needs browser support for <a href="https://caniuse.com/speech-synthesis"><code>speechSynthesis</code></a> and <a href="https://caniuse.com/mdn-api_speechsynthesisutterance"><code>SpeechSynthesisUtterance</code></a>.</li>

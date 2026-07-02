@@ -522,6 +522,17 @@ class WcSpeech extends HTMLElement {
     this.#nodeList.push({ node, lang });
   }
 
+  #syntheticHighlightType(element) {
+    switch (element.tagName.toLowerCase()) {
+      case 'img':
+      case 'video':
+      case 'audio':
+        return 'element';
+      default:
+        return 'sentence';
+    }
+  }
+
   #getTimeText(timeElement, lang) {
     const visibleText = timeElement.textContent.trim();
     const datetimeValue = timeElement.getAttribute('datetime')?.trim();
@@ -1003,7 +1014,7 @@ class WcSpeech extends HTMLElement {
       const element = this.#nodeParent.get(textNode);
       this.#wordHighlight?.clear();
       this.#sentenceHighlight?.clear();
-      this.#setHighlightedElement(element, 'element');
+      this.#setHighlightedElement(element, this.#syntheticHighlightType(element));
       this.#followInView(element);
       return;
     }
@@ -1169,7 +1180,7 @@ class WcSpeech extends HTMLElement {
         const parent = this.#nodeParent.get(textNode);
         this.#wordHighlight?.clear();
         this.#sentenceHighlight?.clear();
-        this.#setHighlightedElement(parent, 'element');
+        this.#setHighlightedElement(parent, this.#syntheticHighlightType(parent));
         return;
       }
 

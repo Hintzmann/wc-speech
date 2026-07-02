@@ -72,7 +72,7 @@ See `demo/advanced/index.html` for a complete toolbar example.
 - **One instance per page** — `speechSynthesis` and `CSS.highlights` are shared globally.
 - **Unsupported browsers** — controls are disabled when `speechSynthesis` is unavailable; there is no user-visible message yet.
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
-- **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or element outline.
+- **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or, for media (`img`, `video`, `audio`), an element outline.
 - **CSS IDs** — advanced styles in `speech-advanced.css` use `#speech-options`; use one speech tool per page or adjust selectors for multiple instances.
 - **No automated tests yet** — manual testing only.
 
