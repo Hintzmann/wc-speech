@@ -76,6 +76,24 @@ Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside
 
 See `demo/advanced/index.html` for a complete toolbar example.
 
+## Events
+
+The component dispatches these `CustomEvent`s (they bubble and are composed):
+
+| Event | When | `detail` |
+| --- | --- | --- |
+| `speech-start` | Reading begins | `{ index, total }` |
+| `speech-stop` | Reading stopped manually (`--hide-controls`, `#stopSpeech`) | `{ index }` |
+| `speech-finish` | Last sentence completes | `{ index }` |
+| `speech-error` | Synthesis fails | `{ index, error }` |
+| `sentence-change` | Each sentence starts | `{ index, total, text }` |
+
+```javascript
+document.querySelector('wc-speech').addEventListener('sentence-change', (event) => {
+  console.log(event.detail.index, event.detail.text);
+});
+```
+
 ## Known limits (preview)
 
 - **One instance per page** — `speechSynthesis` and `CSS.highlights` are shared globally.

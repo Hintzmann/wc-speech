@@ -337,9 +337,16 @@ class WcSpeech extends HTMLElement {
   }
 
   #announce(message) {
-    if (this.#statusRegion && this.#statusRegion.textContent !== message) {
-      this.#statusRegion.textContent = message;
+    const region = this.#statusRegion;
+    if (!region) {
+      return;
     }
+
+    // Force re-announcement when the same status string is set twice in a row.
+    region.textContent = '';
+    requestAnimationFrame(() => {
+      region.textContent = message;
+    });
   }
 
   #text(name) {
@@ -415,6 +422,14 @@ class WcSpeech extends HTMLElement {
     this.#scrollTarget = null;
   }
 
+  #dispatch(type, detail = {}) {
+    this.dispatchEvent(new CustomEvent(type, {
+      bubbles: true,
+      composed: true,
+      detail,
+    }));
+  }
+
   #followInView(target) {
     if (!this.#followsScroll() || !target?.getBoundingClientRect) {
       return;
@@ -475,6 +490,7 @@ class WcSpeech extends HTMLElement {
     this.#paused = false;
     this.#announce('');
     this.#updateControlState();
+    this.#dispatch('speech-stop', { index: this.#nodeIndex });
   }
 
   #toggleOptions() {
@@ -1182,6 +1198,10 @@ class WcSpeech extends HTMLElement {
     this.classList.add('speaking');
     this.#announce(this.#text('status-speaking'));
     this.#updateControlState();
+    this.#dispatch('speech-start', {
+      index: this.#nodeIndex,
+      total: this.#nodeList.length,
+    });
     this.#speakEntry(speakId);
   }
 
@@ -1194,6 +1214,7 @@ class WcSpeech extends HTMLElement {
         this.#paused = false;
         this.#announce(this.#text('status-finished'));
         this.#updateControlState();
+        this.#dispatch('speech-finish', { index: this.#nodeIndex });
       }
       return;
     }
@@ -1217,6 +1238,11 @@ class WcSpeech extends HTMLElement {
 
     this.#highlightEntry(entry);
     this.#startKeepAlive();
+    this.#dispatch('sentence-change', {
+      index: this.#nodeIndex,
+      total: this.#nodeList.length,
+      text: text.trim(),
+    });
 
     utterance.addEventListener('end', () => {
       if (speakId !== this.#speakId) {
@@ -1227,7 +1253,7 @@ class WcSpeech extends HTMLElement {
       this.#updateControlState();
       this.#speakEntry(speakId);
     });
-    utterance.addEventListener('error', () => {
+    utterance.addEventListener('error', (event) => {
       if (speakId !== this.#speakId) {
         return;
       }
@@ -1235,7 +1261,12 @@ class WcSpeech extends HTMLElement {
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
+      this.#announce('');
       this.#updateControlState();
+      this.#dispatch('speech-error', {
+        index: this.#nodeIndex,
+        error: event.error ?? 'synthesis-failed',
+      });
     });
     utterance.addEventListener('boundary', (event) => {
       if (speakId !== this.#speakId) {
