@@ -268,6 +268,15 @@
           <dd>Show or hide the voice and speed options popover.</dd>
         </dl>
 
+        <h3>Events</h3>
+        <p>
+          The component dispatches bubbling, composed <code>CustomEvent</code>s you can listen for:
+          <code>speech-start</code>, <code>speech-stop</code>, <code>speech-finish</code>,
+          <code>speech-error</code>, and <code>sentence-change</code>. Each event includes a
+          <code>detail</code> object with the current sentence index and, where relevant,
+          <code>total</code> and <code>text</code>.
+        </p>
+
         <h3>Language</h3>
         <p>
           Add a <code>lang</code> attribute to the page and to any content that changes
@@ -341,7 +350,7 @@
 
         <button type="button" commandfor="speech" command="--hide-controls" aria-label="Hide speech tool">✕</button>
 
-        <p class="visually-hidden" role="status"></p>
+        <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
 
         <div id="speech-options" popover hidden>
           <p>
