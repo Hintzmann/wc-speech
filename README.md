@@ -21,9 +21,16 @@ Open [http://localhost:3000/demo/](http://localhost:3000/demo/) and choose **sim
 
 Copy these files into your project:
 
-- `wc-speech.js` — the component (required)
+- `wc-speech.js` — the component (required; use for development)
+- `wc-speech.min.js` — minified build (optional; use in production)
 - `speech.css` — sentence and word highlights (required)
 - `speech-advanced.css` — optional fixed speech bar, popover, and toolbar helpers (advanced integration only)
+
+Regenerate the minified file after editing the source:
+
+```bash
+npm run build
+```
 
 Minimal wiring:
 
@@ -44,6 +51,8 @@ Minimal wiring:
 
 <script type="module" src="wc-speech.js"></script>
 ```
+
+Use `wc-speech.min.js` instead of `wc-speech.js` in production if you do not need to read the source.
 
 See `demo/simple/index.html` for this layout, or `demo/advanced/index.html` for the full speech bar, voice picker, and documentation.
 

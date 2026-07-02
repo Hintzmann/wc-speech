@@ -21,9 +21,11 @@
     "wc-speech"
   ],
   "scripts": {
+    "build": "terser wc-speech.js -o wc-speech.min.js -c -m --module",
     "start": "serve . -l 3000"
   },
   "devDependencies": {
-    "serve": "^14.2.4"
+    "serve": "^14.2.4",
+    "terser": "^5.44.0"
   }
 }
