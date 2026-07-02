@@ -101,7 +101,6 @@ document.querySelector('wc-speech').addEventListener('sentence-change', (event) 
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
 - **Long utterances** — a keep-alive heartbeat prevents Chrome from silently cutting off speech after ~15 seconds on a single utterance.
 - **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or, for media (`img`, `video`, `audio`), an element outline. Per-word highlights are suppressed when the user prefers reduced motion; sentence-level highlighting still runs.
-- **CSS IDs** — advanced styles in `speech-advanced.css` use `#speech-options`; use one speech tool per page or adjust selectors for multiple instances.
 - **No automated tests yet** — manual testing only.
 
 ## Browser support
