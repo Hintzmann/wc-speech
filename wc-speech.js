@@ -7,6 +7,12 @@ class WcSpeech extends HTMLElement {
     'status-speaking': 'Speaking',
     'status-paused': 'Paused',
     'status-finished': 'Finished',
+    'error-unsupported': 'Speech is not supported in this browser.',
+    'error-missing-lang': 'Add a lang attribute to the html element before starting speech.',
+    'error-missing-target': 'Set a target attribute on wc-speech pointing at readable content.',
+    'error-target-not-found': 'The target selector did not match any element on the page.',
+    'error-empty-content': 'There is no readable text in the target content.',
+    'error-synthesis-failed': 'Speech synthesis failed. Try another voice or browser.',
   };
 
   static #instance = null;
@@ -15,6 +21,7 @@ class WcSpeech extends HTMLElement {
   #rateControl;
   #optionsPopover;
   #statusRegion;
+  #errorRegion;
   #scrollCheckbox;
   #segmenters = new Map();
   #target;
@@ -107,6 +114,7 @@ class WcSpeech extends HTMLElement {
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
     this.#statusRegion = this.#resolveStatusRegion();
+    this.#errorRegion = this.#resolveErrorRegion();
 
     if (this.#scrollCheckbox) {
       this.#scrollCheckbox.checked = this.hasAttribute('scroll');
@@ -121,6 +129,7 @@ class WcSpeech extends HTMLElement {
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
     this.#statusRegion = this.#resolveStatusRegion();
+    this.#errorRegion = this.#resolveErrorRegion();
     this.#supportsSpeech = this.#supportsSpeechSynthesis();
 
     if (this.#scrollCheckbox) {
@@ -129,8 +138,12 @@ class WcSpeech extends HTMLElement {
 
     if (!this.#supportsSpeech) {
       this.#setControlsDisabled(true);
+      this.#setSpeechState('unsupported');
+      this.#reportError('unsupported');
       return;
     }
+
+    this.#setSpeechState('ready');
 
     this.#optionsPopover?.addEventListener('toggle', this.#onOptionsToggle);
     this.#scrollCheckbox?.addEventListener('change', this.#onScrollToggle);
@@ -245,8 +258,42 @@ class WcSpeech extends HTMLElement {
     return document.documentElement.getAttribute('lang')?.trim() ?? '';
   }
 
-  #warnMissingDocumentLang() {
-    console.warn('wc-speech: Missing lang attribute on the html element. Speech synthesis was not started.');
+  #setSpeechState(state) {
+    this.setAttribute('data-speech-state', state);
+  }
+
+  #reportError(code, detail = {}) {
+    const message = this.#text(`error-${code}`);
+    this.#setSpeechState(code === 'unsupported' ? 'unsupported' : 'error');
+    this.dataset.speechErrorCode = code;
+
+    if (this.#errorRegion) {
+      this.#errorRegion.textContent = message;
+      this.#errorRegion.hidden = false;
+    }
+
+    this.#announce(message, { assertive: true });
+    console.warn(`wc-speech [${code}]: ${message}`);
+
+    this.#dispatch('speech-error', {
+      index: this.#nodeIndex,
+      code,
+      message,
+      ...detail,
+    });
+  }
+
+  #clearError() {
+    if (this.getAttribute('data-speech-state') === 'error') {
+      this.#setSpeechState(this.#supportsSpeech ? 'ready' : 'unsupported');
+    }
+
+    delete this.dataset.speechErrorCode;
+
+    if (this.#errorRegion) {
+      this.#errorRegion.textContent = '';
+      this.#errorRegion.hidden = true;
+    }
   }
 
   #inheritedLangFrom(el) {
@@ -387,16 +434,32 @@ class WcSpeech extends HTMLElement {
     return this.querySelector('[role="status"]');
   }
 
-  #announce(message) {
+  #resolveErrorRegion() {
+    return this.querySelector('[data-speech-error]');
+  }
+
+  #announce(message, { assertive = false } = {}) {
     const region = this.#statusRegion;
     if (!region) {
       return;
+    }
+
+    if (message === '') {
+      region.textContent = '';
+      return;
+    }
+
+    if (assertive) {
+      region.setAttribute('aria-live', 'assertive');
     }
 
     // Force re-announcement when the same status string is set twice in a row.
     region.textContent = '';
     requestAnimationFrame(() => {
       region.textContent = message;
+      if (assertive) {
+        region.setAttribute('aria-live', 'polite');
+      }
     });
   }
 
@@ -540,6 +603,7 @@ class WcSpeech extends HTMLElement {
     this.classList.remove('speaking');
     this.#paused = false;
     this.#announce('');
+    this.#setSpeechState('ready');
     this.#updateControlState();
     this.#dispatch('speech-stop', { index: this.#nodeIndex });
   }
@@ -1172,6 +1236,7 @@ class WcSpeech extends HTMLElement {
       this.#paused = false;
       const speakId = ++this.#speakId;
       this.#announce(this.#text('status-speaking'));
+      this.#setSpeechState('speaking');
       this.#updateControlState();
       this.#speakEntry(speakId);
     } else {
@@ -1180,6 +1245,7 @@ class WcSpeech extends HTMLElement {
       this.#clearKeepAlive();
       speechSynthesis.cancel();
       this.#announce(this.#text('status-paused'));
+      this.#setSpeechState('paused');
       this.#updateControlState();
     }
   }
@@ -1213,15 +1279,21 @@ class WcSpeech extends HTMLElement {
     this.#clearHighlight();
     this.#paused = false;
 
-    const targetSelector = this.getAttribute('target');
-    this.#target = targetSelector ? document.querySelector(targetSelector) : null;
+    const targetSelector = this.getAttribute('target')?.trim();
+    if (!targetSelector) {
+      this.#reportError('missing-target');
+      return;
+    }
+
+    this.#target = document.querySelector(targetSelector);
     if (!this.#target) {
+      this.#reportError('target-not-found');
       return;
     }
 
     const documentLang = this.#documentLang();
     if (!documentLang) {
-      this.#warnMissingDocumentLang();
+      this.#reportError('missing-lang');
       return;
     }
 
@@ -1235,8 +1307,11 @@ class WcSpeech extends HTMLElement {
     this.#collectNodes(this.#target, targetInheritedLang);
 
     if (this.#nodeList.length === 0) {
+      this.#reportError('empty-content');
       return;
     }
+
+    this.#clearError();
 
     if (Number.isInteger(resumeNodeIndex)) {
       this.#nodeIndex = Math.min(resumeNodeIndex, this.#nodeList.length - 1);
@@ -1248,6 +1323,7 @@ class WcSpeech extends HTMLElement {
 
     this.classList.add('speaking');
     this.#announce(this.#text('status-speaking'));
+    this.#setSpeechState('speaking');
     this.#updateControlState();
     this.#dispatch('speech-start', {
       index: this.#nodeIndex,
@@ -1264,6 +1340,7 @@ class WcSpeech extends HTMLElement {
         this.classList.remove('speaking');
         this.#paused = false;
         this.#announce(this.#text('status-finished'));
+        this.#setSpeechState('ready');
         this.#updateControlState();
         this.#dispatch('speech-finish', { index: this.#nodeIndex });
       }
@@ -1312,12 +1389,8 @@ class WcSpeech extends HTMLElement {
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
-      this.#announce('');
       this.#updateControlState();
-      this.#dispatch('speech-error', {
-        index: this.#nodeIndex,
-        error: event.error ?? 'synthesis-failed',
-      });
+      this.#reportError('synthesis-failed', { error: event.error ?? 'synthesis-failed' });
     });
     utterance.addEventListener('boundary', (event) => {
       if (speakId !== this.#speakId) {

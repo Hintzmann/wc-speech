@@ -177,7 +177,8 @@
           <code>data-speech-*</code> hooks on a <code>select</code>, form control, and
           checkbox. Add a <code>[popover]</code> options panel, command buttons with
           <code>commandfor</code> and <code>command</code>, and optionally
-          <code>[role="status"]</code>. Play/pause buttons may sit outside
+          <code>[role="status"]</code>, and optionally
+          <code>[data-speech-error]</code>. Play/pause buttons may sit outside
           <code>&lt;wc-speech&gt;</code>; adjustment controls should stay inside.
           See the toolbar on this page, or the <a href="../simple/">simple demo</a> for a one-button setup.
         </p>
@@ -249,6 +250,12 @@
           <dt><code>status-speaking</code> / <code>status-paused</code> / <code>status-finished</code></dt>
           <dd>Optional text announced in the status region when reading starts or resumes, pauses, and finishes. Defaults to <code>Speaking</code>, <code>Paused</code>, and <code>Finished</code>.</dd>
 
+          <dt><code>error-unsupported</code> / <code>error-missing-lang</code> / <code>error-missing-target</code> / <code>error-target-not-found</code> / <code>error-empty-content</code> / <code>error-synthesis-failed</code></dt>
+          <dd>Optional user-visible error text for common failure cases. Override these attributes for translation. Errors are also announced in <code>[role="status"]</code> and shown in <code>[data-speech-error]</code> when present.</dd>
+
+          <dt><code>data-speech-state</code></dt>
+          <dd>Set on the host element: <code>ready</code>, <code>speaking</code>, <code>paused</code>, <code>unsupported</code>, or <code>error</code>. Use for styling, for example <code>wc-speech[data-speech-state="error"]</code>.</dd>
+
           <dt><code>hidden</code></dt>
           <dd>Hides the control bar until it is opened with <code>--show-controls</code>.</dd>
         </dl>
@@ -272,9 +279,9 @@
         <p>
           The component dispatches bubbling, composed <code>CustomEvent</code>s you can listen for:
           <code>speech-start</code>, <code>speech-stop</code>, <code>speech-finish</code>,
-          <code>speech-error</code>, and <code>sentence-change</code>. Each event includes a
-          <code>detail</code> object with the current sentence index and, where relevant,
-          <code>total</code> and <code>text</code>.
+          <code>speech-error</code>, and <code>sentence-change</code>. The
+          <code>speech-error</code> event includes <code>detail.code</code>,
+          <code>detail.message</code>, and <code>detail.index</code>.
         </p>
 
         <h3>Language</h3>
@@ -352,6 +359,8 @@
         <button type="button" commandfor="speech" command="--hide-controls" aria-label="Hide speech tool">✕</button>
 
         <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+
+        <p data-speech-error role="alert" hidden></p>
 
         <div id="speech-options" popover hidden>
           <p>

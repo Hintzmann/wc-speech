@@ -70,7 +70,9 @@ Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside
 | `[data-speech-rate]` | Form control with a numeric `.value` (range, select, or number input) for speech speed |
 | `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
 | `[popover]` | Voice and speed options panel |
-| `[role="status"]` | Optional live region for Speaking / Paused / Finished |
+| `[role="status"]` | Optional live region for Speaking / Paused / Finished; also used for assertive error announcements |
+| `[data-speech-error]` | Optional persistent error message area (shown when speech cannot start or synthesis fails) |
+| `data-speech-state` | Host attribute set by the component: `ready`, `speaking`, `paused`, `unsupported`, or `error` |
 | `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, etc. |
 | `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside the play/pause button; the component toggles visibility |
 
@@ -85,7 +87,7 @@ The component dispatches these `CustomEvent`s (they bubble and are composed):
 | `speech-start` | Reading begins | `{ index, total }` |
 | `speech-stop` | Reading stopped manually (`--hide-controls`, `#stopSpeech`) | `{ index }` |
 | `speech-finish` | Last sentence completes | `{ index }` |
-| `speech-error` | Synthesis fails | `{ index, error }` |
+| `speech-error` | Synthesis fails or speech cannot start | `{ index, code, message, error? }` |
 | `sentence-change` | Each sentence starts | `{ index, total, text }` |
 
 ```javascript
@@ -97,7 +99,6 @@ document.querySelector('wc-speech').addEventListener('sentence-change', (event) 
 ## Known limits (preview)
 
 - **One instance per page (enforced)** — only the first connected `<wc-speech>` is active. Additional instances are disabled (`data-speech-blocked="duplicate"`) and log a console warning. When the active instance is removed, the next blocked instance is promoted automatically.
-- **Unsupported browsers** — controls are disabled when `speechSynthesis` is unavailable; there is no user-visible message yet.
 - **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
 - **Long utterances** — a keep-alive heartbeat prevents Chrome from silently cutting off speech after ~15 seconds on a single utterance.
 - **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or, for media (`img`, `video`, `audio`), an element outline. Per-word highlights are suppressed when the user prefers reduced motion; sentence-level highlighting still runs.
@@ -122,6 +123,7 @@ Optional enhancements:
 | `code-lang` | Language for `pre` / `code` blocks (default `en`) |
 | `label-play`, `label-pause` | Accessible name for play/pause (default English); visible label comes from your `data-speech-face` markup |
 | `status-speaking`, `status-paused`, `status-finished` | Status region text |
+| `error-unsupported`, `error-missing-lang`, `error-missing-target`, `error-target-not-found`, `error-empty-content`, `error-synthesis-failed` | User-visible error messages (override for i18n) |
 | `hidden` | Hide toolbar until `--show-controls` |
 
 Full reference: see the **Documentation** section in `demo/advanced/index.html`.

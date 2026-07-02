@@ -73,6 +73,11 @@
     display: block;
   }
 
+  wc-speech [data-speech-error]:not([hidden]) {
+    grid-column: 1 / -1;
+    margin: 0.5rem 0 0;
+  }
+
   .rate-ticks {
     color: var(--gray-text, GrayText);
     display: flex;
