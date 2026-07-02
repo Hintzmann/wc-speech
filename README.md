@@ -37,12 +37,12 @@ Minimal wiring:
 ```html
 <link rel="stylesheet" href="speech.css">
 
-<button type="button" commandfor="speech" command="--playpause">
-  <span data-speech-face="play">Listen</span>
-  <span data-speech-face="pause" hidden>Pause</span>
-</button>
-
-<wc-speech id="speech" target="#article" hidden prefer-voice="Microsoft"></wc-speech>
+<wc-speech id="speech" target="#article" hidden aria-hidden="true" prefer-voice="Microsoft">
+  <button type="button" commandfor="speech" command="--playpause">
+    <span data-speech-face="play">Listen</span>
+    <span data-speech-face="pause" hidden>Pause</span>
+  </button>
+</wc-speech>
 
 <article id="article" lang="en">
   <h1>Readable content</h1>
@@ -56,7 +56,9 @@ Use `wc-speech.min.js` instead of `wc-speech.js` in production if you do not nee
 
 See `demo/simple/index.html` for this layout, or `demo/advanced/index.html` for the full speech bar, voice picker, and documentation.
 
-Point `target` at **readable content only**. Put the button and `<wc-speech>` **outside** the target when you can so controls are not spoken. If `<wc-speech>` is inside the target, its subtree is skipped automatically.
+Point `target` at **readable content only**. Put `<wc-speech>` **outside** the target when you can. If `<wc-speech>` is inside the target, its subtree is skipped automatically.
+
+The component sets `aria-hidden="true"` on connect so screen readers stay out of the speech tool. Use `hidden` on `<wc-speech>` only as a pre-init cloak; it is removed when the component connects. In the advanced layout, put `hidden` on the speech bar (`.speech-bar` or `[data-speech-bar]`) to collapse the toolbar until `--show-controls`.
 
 Set `lang` on `<html>` and on any section that uses another language.
 
@@ -70,7 +72,8 @@ Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside
 | `[data-speech-rate]` | Form control with a numeric `.value` (range, select, or number input) for speech speed |
 | `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
 | `[popover]` | Voice and speed options panel |
-| `[role="status"]` | Optional live region for Speaking / Paused / Finished; also used for assertive error announcements |
+| `[data-speech-bar]` / `.speech-bar` | Optional toolbar container; `hidden` toggled by `--show-controls` / `--hide-controls` |
+| `[role="status"]` | Optional live region (ineffective when `aria-hidden="true"` is on `<wc-speech>`) |
 | `[data-speech-error]` | Optional persistent error message area (shown when speech cannot start or synthesis fails) |
 | `data-speech-state` | Host attribute set by the component: `ready`, `speaking`, `paused`, `unsupported`, or `error` |
 | `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, etc. |
@@ -121,10 +124,11 @@ Optional enhancements:
 | `prefer-voice` | Prefer voice names/URIs containing this text when auto-selecting in `[data-speech-voice]` |
 | `scroll` | Follow along while reading (honours `prefers-reduced-motion`) |
 | `code-lang` | Language for `pre` / `code` blocks (default `en`) |
-| `label-play`, `label-pause` | Accessible name for play/pause (default English); visible label comes from your `data-speech-face` markup |
-| `status-speaking`, `status-paused`, `status-finished` | Status region text |
+| `label-play`, `label-pause` | Accessible name for play/pause when faces are icon-only (default English) |
+| `status-speaking`, `status-paused`, `status-finished` | Status region text when `[role="status"]` is used |
 | `error-unsupported`, `error-missing-lang`, `error-missing-target`, `error-target-not-found`, `error-empty-content`, `error-synthesis-failed` | User-visible error messages (override for i18n) |
-| `hidden` | Hide toolbar until `--show-controls` |
+| `hidden` | Pre-init cloak on `<wc-speech>` (removed on connect); on the speech bar, hides the toolbar until `--show-controls` |
+| `aria-hidden` | Set to `true` on connect; keeps assistive technology out of the speech tool |
 
 Full reference: see the **Documentation** section in `demo/advanced/index.html`.
 

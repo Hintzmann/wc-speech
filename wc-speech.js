@@ -22,6 +22,7 @@ class WcSpeech extends HTMLElement {
   #optionsPopover;
   #statusRegion;
   #errorRegion;
+  #controlBar;
   #scrollCheckbox;
   #segmenters = new Map();
   #target;
@@ -115,6 +116,8 @@ class WcSpeech extends HTMLElement {
     this.#optionsPopover = this.#resolveOptionsPopover();
     this.#statusRegion = this.#resolveStatusRegion();
     this.#errorRegion = this.#resolveErrorRegion();
+    this.#controlBar = this.#resolveControlBar();
+    this.#revealHost();
 
     if (this.#scrollCheckbox) {
       this.#scrollCheckbox.checked = this.hasAttribute('scroll');
@@ -130,6 +133,8 @@ class WcSpeech extends HTMLElement {
     this.#optionsPopover = this.#resolveOptionsPopover();
     this.#statusRegion = this.#resolveStatusRegion();
     this.#errorRegion = this.#resolveErrorRegion();
+    this.#controlBar = this.#resolveControlBar();
+    this.#revealHost();
     this.#supportsSpeech = this.#supportsSpeechSynthesis();
 
     if (this.#scrollCheckbox) {
@@ -438,6 +443,20 @@ class WcSpeech extends HTMLElement {
     return this.querySelector('[data-speech-error]');
   }
 
+  #resolveControlBar() {
+    return this.querySelector('[data-speech-bar]')
+      ?? this.querySelector('.speech-bar');
+  }
+
+  #revealHost() {
+    this.removeAttribute('hidden');
+    this.setAttribute('aria-hidden', 'true');
+  }
+
+  #isControlBarVisible() {
+    return Boolean(this.#controlBar && !this.#controlBar.hidden);
+  }
+
   #announce(message, { assertive = false } = {}) {
     const region = this.#statusRegion;
     if (!region) {
@@ -555,7 +574,7 @@ class WcSpeech extends HTMLElement {
     }
 
     const margin = 16;
-    const topInset = (this.hidden ? 0 : this.getBoundingClientRect().bottom) + margin;
+    const topInset = (this.#isControlBarVisible() ? this.getBoundingClientRect().bottom : 0) + margin;
     const bottomInset = window.innerHeight - margin;
 
     let delta = 0;
@@ -574,7 +593,10 @@ class WcSpeech extends HTMLElement {
   }
 
   #showControls(source) {
-    this.hidden = false;
+    if (this.#controlBar) {
+      this.#controlBar.hidden = false;
+    }
+
     (source ?? this.#buttonForCommand('--show-controls'))?.toggleAttribute('hidden', true);
     this.#updateControlState();
     this.#buttonForCommand('--playpause')?.focus();
@@ -583,7 +605,10 @@ class WcSpeech extends HTMLElement {
   #hideControls() {
     this.#stopSpeech();
     this.#closeOptions();
-    this.hidden = true;
+
+    if (this.#controlBar) {
+      this.#controlBar.hidden = true;
+    }
 
     const showButton = this.#buttonForCommand('--show-controls');
     showButton?.removeAttribute('hidden');

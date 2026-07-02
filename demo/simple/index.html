@@ -13,29 +13,25 @@
     <main>
       <p><a href="../">All demos</a> · <a href="../advanced/">Advanced demo</a></p>
 
-      <button type="button" commandfor="speech" command="--playpause">
-        <span data-speech-face="play">🗣️ Læs op</span>
-        <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
-      </button>
-
-      <wc-speech id="speech" target="#article" hidden prefer-voice="Microsoft">
-        <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+      <wc-speech id="speech" target="#article" hidden aria-hidden="true" prefer-voice="Microsoft">
+        <button type="button" commandfor="speech" command="--playpause">
+          <span data-speech-face="play">🗣️ Læs op</span>
+          <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
+        </button>
+        <p data-speech-error role="alert" hidden></p>
       </wc-speech>
 
-      <article id="article" lang="en">
+      <article id="article">
         <h1>Simple integration</h1>
         <p>
-          This page uses one button wired to <code>command="--playpause"</code>.
-          There is no speech bar, voice picker, or speed control — defaults only.
+          This page uses one button inside <code>&lt;wc-speech&gt;</code>, wired to
+          <code>command="--playpause"</code>. There is no speech bar, voice picker, or speed
+          control — defaults only.
         </p>
         <p>
-          The button and <code>&lt;wc-speech&gt;</code> sit <strong>outside</strong> the reading
-          target (<code>#article</code>). Point <code>target</code> at the content to speak; keep
-          controls outside when you can so they are not collected as readable text.
-        </p>
-        <p>
-          If <code>&lt;wc-speech&gt;</code> is inside the target, the component still skips its
-          own subtree when collecting text.
+          Point <code>target</code> at the content to speak (<code>#article</code>). Keep that
+          target separate from the speech tool when you can. The component skips its own subtree
+          when collecting text.
         </p>
         <p>
           Press <strong><span aria-hidden="true">🗣️</span> Læs op</strong> to hear this article. Use the same button to pause.

@@ -175,10 +175,10 @@
         <p>
           Inside <code>&lt;wc-speech&gt;</code>, wire voice, speed, and scroll with
           <code>data-speech-*</code> hooks on a <code>select</code>, form control, and
-          checkbox. Add a <code>[popover]</code> options panel, command buttons with
+          checkbox. Add a <code>[popover]</code> options panel inside a speech bar
+          (<code>.speech-bar</code> or <code>[data-speech-bar]</code>), command buttons with
           <code>commandfor</code> and <code>command</code>, and optionally
-          <code>[role="status"]</code>, and optionally
-          <code>[data-speech-error]</code>. Play/pause buttons may sit outside
+          <code>[data-speech-error]</code>. Play/pause buttons may sit inside or outside
           <code>&lt;wc-speech&gt;</code>; adjustment controls should stay inside.
           See the toolbar on this page, or the <a href="../simple/">simple demo</a> for a one-button setup.
         </p>
@@ -194,23 +194,25 @@
   Show speech tool
 &lt;/button&gt;
 
-&lt;wc-speech 
-  id="speech" target="#article" prefer-voice="Microsoft" hidden&gt;
+&lt;wc-speech
+  id="speech" target="#article" prefer-voice="Microsoft" hidden aria-hidden="true"&gt;
 
-  &lt;button type="button" commandfor="speech" command="--playpause"&gt;
-    &lt;span data-speech-face="play"&gt;Play&lt;/span&gt;
-    &lt;span data-speech-face="pause" hidden&gt;Pause&lt;/span&gt;
-  &lt;/button&gt;
+  &lt;section class="speech-bar" hidden&gt;
+    &lt;button type="button" commandfor="speech" command="--playpause"&gt;
+      &lt;span data-speech-face="play"&gt;Play&lt;/span&gt;
+      &lt;span data-speech-face="pause" hidden&gt;Pause&lt;/span&gt;
+    &lt;/button&gt;
 
-  &lt;button type="button" commandfor="speech" 
-    command="--previous-sentence"&gt;Previous&lt;/button&gt;
+    &lt;button type="button" commandfor="speech"
+      command="--previous-sentence"&gt;Previous&lt;/button&gt;
 
-  &lt;button type="button" commandfor="speech" 
-    command="--next-sentence"&gt;Next&lt;/button&gt;
+    &lt;button type="button" commandfor="speech"
+      command="--next-sentence"&gt;Next&lt;/button&gt;
 
-  &lt;select data-speech-voice&gt;&lt;/select&gt;
+    &lt;select data-speech-voice&gt;&lt;/select&gt;
 
-  &lt;input data-speech-rate type="range" min="0" max="3.5" step="0.5" value="1"&gt;
+    &lt;input data-speech-rate type="range" min="0" max="3.5" step="0.5" value="1"&gt;
+  &lt;/section&gt;
 &lt;/wc-speech&gt;
 
 &lt;article id="article" lang="en"&gt;
@@ -248,16 +250,19 @@
           <dd>On child elements of a <code>command="--playpause"</code> button. The component toggles which face is shown and sets <code>data-speech-action</code> on the button. You supply icons, emoji, or text; wc-speech does not hardcode them. Icon-only buttons can use <code>aria-hidden="true"</code> on faces and rely on <code>label-play</code> / <code>label-pause</code> for the accessible name.</dd>
 
           <dt><code>status-speaking</code> / <code>status-paused</code> / <code>status-finished</code></dt>
-          <dd>Optional text announced in the status region when reading starts or resumes, pauses, and finishes. Defaults to <code>Speaking</code>, <code>Paused</code>, and <code>Finished</code>.</dd>
+          <dd>Optional text for a <code>[role="status"]</code> hook when present. Defaults to <code>Speaking</code>, <code>Paused</code>, and <code>Finished</code>. Has no effect on assistive technology when <code>aria-hidden="true"</code> is on <code>&lt;wc-speech&gt;</code> (the default after connect).</dd>
 
           <dt><code>error-unsupported</code> / <code>error-missing-lang</code> / <code>error-missing-target</code> / <code>error-target-not-found</code> / <code>error-empty-content</code> / <code>error-synthesis-failed</code></dt>
-          <dd>Optional user-visible error text for common failure cases. Override these attributes for translation. Errors are also announced in <code>[role="status"]</code> and shown in <code>[data-speech-error]</code> when present.</dd>
+          <dd>Optional user-visible error text for common failure cases. Override these attributes for translation. Errors are logged to the console, dispatched as <code>speech-error</code>, and shown in <code>[data-speech-error]</code> when present.</dd>
 
           <dt><code>data-speech-state</code></dt>
           <dd>Set on the host element: <code>ready</code>, <code>speaking</code>, <code>paused</code>, <code>unsupported</code>, or <code>error</code>. Use for styling, for example <code>wc-speech[data-speech-state="error"]</code>.</dd>
 
           <dt><code>hidden</code></dt>
-          <dd>Hides the control bar until it is opened with <code>--show-controls</code>.</dd>
+          <dd>On <code>&lt;wc-speech&gt;</code>, a pre-init cloak removed when the component connects. On the speech bar (<code>.speech-bar</code> or <code>[data-speech-bar]</code>), hides the toolbar until <code>--show-controls</code>.</dd>
+
+          <dt><code>aria-hidden</code></dt>
+          <dd>Set to <code>true</code> when the component connects so screen readers and other assistive technology stay out of the speech tool. Sighted users interact with visible controls; the tool is not a replacement for assistive technology.</dd>
         </dl>
 
         <h3>Commands</h3>
@@ -339,8 +344,8 @@
 
     </main>
 
-    <wc-speech id="speech" target="#speech-target" prefer-voice="Microsoft" scroll hidden>
-      <section class="speech-bar" aria-labelledby="speech-heading">
+    <wc-speech id="speech" target="#speech-target" prefer-voice="Microsoft" scroll hidden aria-hidden="true">
+      <section class="speech-bar" hidden aria-labelledby="speech-heading">
         <h2 id="speech-heading" lang="en" class="visually-hidden">Speech tool controls</h2>
 
         <button type="button" commandfor="speech" command="--toggle-options" aria-controls="speech-options" aria-expanded="false">
@@ -357,8 +362,6 @@
         </p>
 
         <button type="button" commandfor="speech" command="--hide-controls" aria-label="Hide speech tool">✕</button>
-
-        <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
 
         <p data-speech-error role="alert" hidden></p>
 

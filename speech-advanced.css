@@ -8,7 +8,7 @@
 }
 
 @layer components {
-  body:has(wc-speech:not([hidden])) {
+  body:has(wc-speech .speech-bar:not([hidden])) {
     padding-block-start: var(--speech-bar-block-size);
   }
 
@@ -19,7 +19,7 @@
     z-index: 10;
   }
 
-  wc-speech:not([hidden]) {
+  wc-speech:has(.speech-bar:not([hidden])) {
     background: Canvas;
     border-block-end: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
     box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 15%);
@@ -75,7 +75,6 @@
 
   wc-speech [data-speech-error]:not([hidden]) {
     grid-column: 1 / -1;
-    margin: 0.5rem 0 0;
   }
 
   .rate-ticks {

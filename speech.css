@@ -6,6 +6,8 @@
     --speech-word-text: MarkText;
     --speech-sentence-bg: SelectedItem;
     --speech-sentence-text: SelectedItemText;
+    --speech-error-bg: Mark;
+    --speech-error-text: MarkText;
   }
 }
 
@@ -32,5 +34,14 @@
 
   [data-speech-synth-highlight="element"] {
     outline: 10px solid var(--speech-word-bg, Mark);
+  }
+
+  wc-speech [data-speech-error]:not([hidden]) {
+    background: var(--speech-error-bg, Mark);
+    border-radius: 0.25rem;
+    color: var(--speech-error-text, MarkText);
+    font-size: 0.875rem;
+    margin: 0.5rem 0 0;
+    padding: 0.5rem 0.75rem;
   }
 }
