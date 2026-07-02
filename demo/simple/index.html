@@ -18,11 +18,9 @@
         <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
       </button>
 
-      <p data-speech-error commandfor="speech" role="alert" hidden></p>
-
-      <p class="visually-hidden" role="status" commandfor="speech" aria-live="polite" aria-atomic="true"></p>
-
-      <wc-speech id="speech" target="#article" hidden prefer-voice="Microsoft"></wc-speech>
+      <wc-speech id="speech" target="#article" hidden prefer-voice="Microsoft">
+        <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+      </wc-speech>
 
       <article id="article" lang="en">
         <h1>Simple integration</h1>

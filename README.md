@@ -70,8 +70,8 @@ Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside
 | `[data-speech-rate]` | Form control with a numeric `.value` (range, select, or number input) for speech speed |
 | `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
 | `[popover]` | Voice and speed options panel |
-| `[role="status"]` | Optional live region for Speaking / Paused / Finished; also used for assertive error announcements. When `<wc-speech hidden>` is set, place `[role="status"][commandfor="…"]` outside the component |
-| `[data-speech-error]` | Optional persistent error message area. When `<wc-speech hidden>` is set, place `[data-speech-error][commandfor="…"]` outside the component so errors remain visible |
+| `[role="status"]` | Optional live region for Speaking / Paused / Finished; also used for assertive error announcements |
+| `[data-speech-error]` | Optional persistent error message area (shown when speech cannot start or synthesis fails) |
 | `data-speech-state` | Host attribute set by the component: `ready`, `speaking`, `paused`, `unsupported`, or `error` |
 | `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, etc. |
 | `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside the play/pause button; the component toggles visibility |

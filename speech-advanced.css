@@ -19,15 +19,6 @@
     z-index: 10;
   }
 
-  .speech-show-error {
-    inset-block-start: calc(env(safe-area-inset-top) + 3rem);
-    inset-inline-end: 0.5rem;
-    margin: 0;
-    max-inline-size: min(20rem, calc(100vw - 1rem));
-    position: fixed;
-    z-index: 10;
-  }
-
   wc-speech:not([hidden]) {
     background: Canvas;
     border-block-end: 1px solid color-mix(in srgb, CanvasText 20%, transparent);

@@ -113,7 +113,8 @@ class WcSpeech extends HTMLElement {
     this.#applyButtonTitles();
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
-    this.#refreshMessageRegions();
+    this.#statusRegion = this.#resolveStatusRegion();
+    this.#errorRegion = this.#resolveErrorRegion();
 
     if (this.#scrollCheckbox) {
       this.#scrollCheckbox.checked = this.hasAttribute('scroll');
@@ -127,7 +128,8 @@ class WcSpeech extends HTMLElement {
     this.#applyButtonTitles();
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
-    this.#refreshMessageRegions();
+    this.#statusRegion = this.#resolveStatusRegion();
+    this.#errorRegion = this.#resolveErrorRegion();
     this.#supportsSpeech = this.#supportsSpeechSynthesis();
 
     if (this.#scrollCheckbox) {
@@ -428,40 +430,12 @@ class WcSpeech extends HTMLElement {
     return element;
   }
 
-  #refreshMessageRegions() {
-    this.#statusRegion = this.#resolveStatusRegion();
-    this.#errorRegion = this.#resolveErrorRegion();
-  }
-
-  #externalMessageHook(selector) {
-    if (!this.id) {
-      return null;
-    }
-
-    const escapedId = CSS.escape(this.id);
-    return document.querySelector(`${selector}[commandfor="${escapedId}"]`);
-  }
-
   #resolveStatusRegion() {
-    if (!this.hidden) {
-      const internal = this.querySelector('[role="status"]');
-      if (internal) {
-        return internal;
-      }
-    }
-
-    return this.#externalMessageHook('[role="status"]');
+    return this.querySelector('[role="status"]');
   }
 
   #resolveErrorRegion() {
-    if (!this.hidden) {
-      const internal = this.querySelector('[data-speech-error]');
-      if (internal) {
-        return internal;
-      }
-    }
-
-    return this.#externalMessageHook('[data-speech-error]');
+    return this.querySelector('[data-speech-error]');
   }
 
   #announce(message, { assertive = false } = {}) {
@@ -601,7 +575,6 @@ class WcSpeech extends HTMLElement {
 
   #showControls(source) {
     this.hidden = false;
-    this.#refreshMessageRegions();
     (source ?? this.#buttonForCommand('--show-controls'))?.toggleAttribute('hidden', true);
     this.#updateControlState();
     this.#buttonForCommand('--playpause')?.focus();
@@ -611,7 +584,6 @@ class WcSpeech extends HTMLElement {
     this.#stopSpeech();
     this.#closeOptions();
     this.hidden = true;
-    this.#refreshMessageRegions();
 
     const showButton = this.#buttonForCommand('--show-controls');
     showButton?.removeAttribute('hidden');
