@@ -62,7 +62,7 @@ Set `lang` on `<html>` and on any section that uses another language.
 
 ## Expected markup
 
-Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside** `<wc-speech>`. Play/pause and navigation buttons may live anywhere, wired with `commandfor` and `command`.
+Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside** `<wc-speech>`. Play/pause and navigation buttons may live anywhere, wired with `commandfor` and `command`. Buttons are resolved at interaction time, so they can be added to the page after the component connects (for example after a client-side route change).
 
 | Hook | Purpose |
 | --- | --- |
