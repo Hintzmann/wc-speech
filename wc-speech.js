@@ -6,6 +6,21 @@ import {
 class WcSpeech extends HTMLElement {
   static observedAttributes = ['prefer-voice', 'target', 'scroll', 'label-play', 'label-pause'];
 
+  static #FLOW_CONTAINER_TAGS = new Set([
+    'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'li', 'dd', 'dt', 'blockquote', 'figcaption', 'td', 'th', 'caption',
+  ]);
+
+  static #NESTED_BLOCK_TAGS = new Set([
+    ...WcSpeech.#FLOW_CONTAINER_TAGS,
+    'div', 'section', 'article', 'main', 'nav', 'aside', 'header', 'footer',
+    'ul', 'ol', 'dl', 'table', 'figure', 'details', 'fieldset', 'form', 'hr',
+  ]);
+
+  static #FLOW_BREAKER_TAGS = new Set(['img', 'time', 'video', 'audio', 'pre']);
+
+  static #SKIP_TAGS = new Set(['select', 'input', 'textarea', 'button', 'script', 'style', 'noscript']);
+
   static #strings = {
     'label-play': 'Play',
     'label-pause': 'Pause',
@@ -46,9 +61,7 @@ class WcSpeech extends HTMLElement {
   #wordHighlight;
   #sentenceHighlight;
   #lastHighlightedElement = null;
-  #lastSentenceNode = null;
-  #lastSentenceStart = -1;
-  #lastSentenceEnd = -1;
+  #lastSentenceRange = null;
   #supportsSpeech = false;
   #registered = false;
   #paused = false;
@@ -57,9 +70,11 @@ class WcSpeech extends HTMLElement {
   #scrollRaf = 0;
   #scrollTarget = null;
   #optionsOpenBeforePointerDown = false;
+  #escapeStopBound = false;
   #onVoicesChanged = () => this.#populateVoiceList();
   #onCommandButtonClick = (event) => this.#handleCommandButtonClick(event);
   #onPointerDown = (event) => this.#handlePointerDown(event);
+  #onKeydown = (event) => this.#handleKeydown(event);
   #onOptionsToggle = () => this.#updateOptionsButton();
   #onScrollToggle = () => this.toggleAttribute('scroll', Boolean(this.#scrollCheckbox?.checked));
 
@@ -85,6 +100,7 @@ class WcSpeech extends HTMLElement {
     this.#scrollCheckbox?.removeEventListener('change', this.#onScrollToggle);
     document.removeEventListener('pointerdown', this.#onPointerDown, { capture: true });
     document.removeEventListener('click', this.#onCommandButtonClick);
+    this.#unbindEscapeStop();
 
     this.#speakId += 1;
     this.#clearKeepAlive();
@@ -231,6 +247,47 @@ class WcSpeech extends HTMLElement {
       && button.getAttribute('command') === '--toggle-options'
       && this.#isOptionsOpen()
     );
+  }
+
+  #bindEscapeStop() {
+    if (this.#escapeStopBound) {
+      return;
+    }
+
+    document.addEventListener('keydown', this.#onKeydown);
+    this.#escapeStopBound = true;
+  }
+
+  #unbindEscapeStop() {
+    if (!this.#escapeStopBound) {
+      return;
+    }
+
+    document.removeEventListener('keydown', this.#onKeydown);
+    this.#escapeStopBound = false;
+  }
+
+  #handleKeydown(event) {
+    if (event.key !== 'Escape' || event.defaultPrevented) {
+      return;
+    }
+
+    if (!this.#registered || !this.#supportsSpeech) {
+      return;
+    }
+
+    if (this.#isOptionsOpen()) {
+      this.#closeOptions();
+      event.preventDefault();
+      return;
+    }
+
+    if (!this.classList.contains('speaking')) {
+      return;
+    }
+
+    this.#stopSpeech();
+    event.preventDefault();
   }
 
   #runCommand(command, source) {
@@ -625,6 +682,8 @@ class WcSpeech extends HTMLElement {
   }
 
   #stopSpeech() {
+    this.#unbindEscapeStop();
+
     if (this.classList.contains('speaking')) {
       this.#resumeNodeIndex = this.#nodeIndex;
     }
@@ -789,7 +848,6 @@ class WcSpeech extends HTMLElement {
 
   #collectNodes(parent, inheritedLang) {
     const currentLang = parent.getAttribute('lang')?.trim() || inheritedLang;
-    const skipTags = new Set(['select', 'input', 'textarea', 'button', 'script', 'style', 'noscript']);
 
     next: for (const child of parent.childNodes) {
       if (child.nodeType === Node.TEXT_NODE) {
@@ -810,11 +868,16 @@ class WcSpeech extends HTMLElement {
         continue next;
       }
 
-      if (skipTags.has(tagName)) {
+      if (WcSpeech.#SKIP_TAGS.has(tagName)) {
         continue next;
       }
 
       if (tagName === 'wc-speech') {
+        continue next;
+      }
+
+      if (WcSpeech.#FLOW_CONTAINER_TAGS.has(tagName)) {
+        this.#collectFlow(child, childLang);
         continue next;
       }
 
@@ -858,6 +921,248 @@ class WcSpeech extends HTMLElement {
 
       this.#collectNodes(child, childLang);
     }
+  }
+
+  #collectFlow(container, inheritedLang) {
+    const containerLang = container.getAttribute('lang')?.trim() || inheritedLang;
+    const chunks = [];
+    this.#gatherFlowChunks(container, containerLang, chunks);
+
+    let currentRun = null;
+
+    const flushRun = () => {
+      if (currentRun?.chunks.length) {
+        this.#pushFlowRun(currentRun);
+      }
+      currentRun = null;
+    };
+
+    for (const chunk of chunks) {
+      if (chunk.type === 'breaker') {
+        flushRun();
+        this.#pushFlowBreaker(chunk);
+        continue;
+      }
+
+      if (chunk.type === 'nested-block') {
+        flushRun();
+        const childLang = chunk.element.getAttribute('lang')?.trim() || containerLang;
+        const nestedTag = chunk.element.nodeName.toLowerCase();
+        if (WcSpeech.#FLOW_CONTAINER_TAGS.has(nestedTag)) {
+          this.#collectFlow(chunk.element, childLang);
+        } else {
+          this.#collectNodes(chunk.element, childLang);
+        }
+        continue;
+      }
+
+      if (!currentRun || chunk.lang !== currentRun.lang) {
+        flushRun();
+        currentRun = { lang: chunk.lang, chunks: [] };
+      }
+
+      currentRun.chunks.push(chunk);
+    }
+
+    flushRun();
+  }
+
+  #gatherFlowChunks(parent, inheritedLang, chunks) {
+    for (const child of parent.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        if (child.textContent.length > 0) {
+          chunks.push({
+            type: 'text',
+            node: child,
+            text: child.textContent,
+            lang: inheritedLang,
+          });
+        }
+        continue;
+      }
+
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        continue;
+      }
+
+      const tagName = child.nodeName.toLowerCase();
+      const childLang = child.getAttribute('lang')?.trim() || inheritedLang;
+
+      if (child.getAttribute('aria-hidden') === 'true' || child.hasAttribute('hidden')) {
+        continue;
+      }
+
+      if (WcSpeech.#SKIP_TAGS.has(tagName) || tagName === 'wc-speech') {
+        continue;
+      }
+
+      if (tagName === 'abbr') {
+        const expansion = child.getAttribute('title')?.trim();
+        if (expansion) {
+          chunks.push({
+            type: 'expansion',
+            element: child,
+            text: expansion,
+            lang: childLang,
+          });
+          continue;
+        }
+        this.#gatherFlowChunks(child, childLang, chunks);
+        continue;
+      }
+
+      if (WcSpeech.#FLOW_BREAKER_TAGS.has(tagName)) {
+        chunks.push({ type: 'breaker', element: child, lang: childLang });
+        continue;
+      }
+
+      if (WcSpeech.#NESTED_BLOCK_TAGS.has(tagName)) {
+        chunks.push({ type: 'nested-block', element: child, lang: childLang });
+        continue;
+      }
+
+      this.#gatherFlowChunks(child, childLang, chunks);
+    }
+  }
+
+  #pushFlowBreaker({ element, lang }) {
+    const tagName = element.nodeName.toLowerCase();
+
+    if (tagName === 'img') {
+      const alt = element.getAttribute('alt')?.trim();
+      if (alt) {
+        this.#pushSynthetic(element, alt, lang);
+      }
+      return;
+    }
+
+    if (tagName === 'time') {
+      this.#pushSynthetic(element, this.#getTimeText(element, lang), lang);
+      return;
+    }
+
+    if (tagName === 'video' || tagName === 'audio') {
+      const name = this.#accessibleName(element);
+      this.#pushSynthetic(element, name ? `${tagName}: ${name}` : tagName, lang);
+      return;
+    }
+
+    if (tagName === 'pre') {
+      const codeLang = element.getAttribute('lang')?.trim()
+        || this.getAttribute('code-lang')?.trim()
+        || 'en';
+      const content = element.textContent.trim();
+      if (content) {
+        this.#pushSynthetic(element, content, codeLang);
+      }
+    }
+  }
+
+  #pushFlowRun({ lang, chunks }) {
+    let offset = 0;
+    const spanDescriptors = [];
+    const normalizedChunks = chunks.map((chunk, index) => {
+      let text = chunk.text;
+      let nodeStart = 0;
+
+      if (
+        chunk.type === 'text'
+        && index > 0
+        && /\s$/.test(chunks[index - 1].text)
+        && /^\s/.test(text)
+      ) {
+        const leadingWhitespace = /^\s+/.exec(text);
+        nodeStart = leadingWhitespace[0].length;
+        text = text.slice(nodeStart);
+      }
+
+      return { ...chunk, text, nodeStart };
+    });
+
+    for (const chunk of normalizedChunks) {
+      const chunkStart = offset;
+      offset += chunk.text.length;
+
+      if (chunk.type === 'text') {
+        spanDescriptors.push({
+          kind: 'text',
+          node: chunk.node,
+          runStart: chunkStart,
+          runEnd: offset,
+          nodeStart: chunk.nodeStart,
+          nodeEnd: chunk.nodeStart + chunk.text.length,
+        });
+      } else if (chunk.type === 'expansion') {
+        spanDescriptors.push({
+          kind: 'expansion',
+          element: chunk.element,
+          runStart: chunkStart,
+          runEnd: offset,
+        });
+      }
+    }
+
+    const fullText = normalizedChunks.map((chunk) => chunk.text).join('');
+    if (fullText.trim() === '') {
+      return;
+    }
+
+    const segments = this.#sentenceSegmentsForText(fullText, lang);
+
+    for (const segment of segments) {
+      if (fullText.slice(segment.start, segment.end).trim() === '') {
+        continue;
+      }
+
+      const spans = this.#spansForSegment(spanDescriptors, segment.start, segment.end);
+      const text = fullText.slice(segment.start, segment.end);
+      const entry = { text, lang, spans };
+
+      if (spans.length === 1 && spans[0].node) {
+        entry.node = spans[0].node;
+        entry.start = spans[0].start;
+        entry.end = spans[0].end;
+      } else if (spans[0]?.node) {
+        entry.node = spans[0].node;
+        entry.start = spans[0].start;
+        entry.end = spans[0].end;
+      }
+
+      this.#nodeList.push(entry);
+    }
+  }
+
+  #spansForSegment(spanDescriptors, segStart, segEnd) {
+    const spans = [];
+
+    for (const desc of spanDescriptors) {
+      if (desc.runEnd <= segStart || desc.runStart >= segEnd) {
+        continue;
+      }
+
+      const overlapStart = Math.max(segStart, desc.runStart);
+      const overlapEnd = Math.min(segEnd, desc.runEnd);
+
+      if (desc.kind === 'text') {
+        spans.push({
+          node: desc.node,
+          start: overlapStart - desc.runStart + desc.nodeStart,
+          end: overlapEnd - desc.runStart + desc.nodeStart,
+          runStart: overlapStart - segStart,
+          runEnd: overlapEnd - segStart,
+        });
+      } else {
+        spans.push({
+          element: desc.element,
+          start: overlapStart - desc.runStart,
+          end: overlapEnd - desc.runStart,
+          runStart: overlapStart - segStart,
+          runEnd: overlapEnd - segStart,
+        });
+      }
+    }
+
+    return spans;
   }
 
   #collectTextNode(textNode, lang) {
@@ -953,9 +1258,58 @@ class WcSpeech extends HTMLElement {
     this.#sentenceHighlight?.clear();
     this.#wordHighlight?.clear();
     this.#setHighlightedElement(null);
-    this.#lastSentenceNode = null;
-    this.#lastSentenceStart = -1;
-    this.#lastSentenceEnd = -1;
+    this.#lastSentenceRange = null;
+  }
+
+  #rangesEqual(a, b) {
+    if (!a || !b) {
+      return false;
+    }
+
+    return (
+      a.startContainer === b.startContainer
+      && a.endContainer === b.endContainer
+      && a.startOffset === b.startOffset
+      && a.endOffset === b.endOffset
+    );
+  }
+
+  #boundaryRangeForEntry(entry, event) {
+    const charIndex = event.charIndex;
+    const charLength = event.charLength;
+    if (
+      !Number.isFinite(charIndex)
+      || !Number.isFinite(charLength)
+      || charLength <= 0
+    ) {
+      return null;
+    }
+
+    const absStart = charIndex;
+    const absEnd = charIndex + charLength;
+
+    for (const span of entry.spans) {
+      if (absStart < span.runStart || absStart >= span.runEnd) {
+        continue;
+      }
+
+      if (span.element) {
+        return null;
+      }
+
+      const localStart = span.start + (absStart - span.runStart);
+      const localEnd = Math.min(span.end, span.start + (absEnd - span.runStart));
+      if (localStart < 0 || localEnd > span.node.textContent.length || localStart >= localEnd) {
+        return null;
+      }
+
+      const range = new Range();
+      range.setStart(span.node, localStart);
+      range.setEnd(span.node, localEnd);
+      return range;
+    }
+
+    return null;
   }
 
   #boundaryRange(textNode, event, offset = 0) {
@@ -981,6 +1335,10 @@ class WcSpeech extends HTMLElement {
   }
 
   #entryRange(entry) {
+    if (entry.spans?.length) {
+      return this.#rangeFromSpans(entry.spans);
+    }
+
     if (!Number.isFinite(entry.start) || !Number.isFinite(entry.end)) {
       return null;
     }
@@ -991,7 +1349,35 @@ class WcSpeech extends HTMLElement {
     return range;
   }
 
+  #rangeFromSpans(spans) {
+    if (!spans.length) {
+      return null;
+    }
+
+    const first = spans[0];
+    const last = spans.at(-1);
+    const range = new Range();
+
+    if (first.element) {
+      range.setStartBefore(first.element);
+    } else {
+      range.setStart(first.node, first.start);
+    }
+
+    if (last.element) {
+      range.setEndAfter(last.element);
+    } else {
+      range.setEnd(last.node, last.end);
+    }
+
+    return range;
+  }
+
   #entryText(entry) {
+    if (typeof entry.text === 'string') {
+      return entry.text.trim();
+    }
+
     if (!Number.isFinite(entry.start) || !Number.isFinite(entry.end)) {
       return entry.node.textContent.trim();
     }
@@ -1000,6 +1386,10 @@ class WcSpeech extends HTMLElement {
   }
 
   #wordRangeFromBoundaryRange(range, entry) {
+    if (entry.spans?.length) {
+      return range;
+    }
+
     const boundaryText = range.toString();
     const trimmedBoundaryText = boundaryText.trim();
     if (trimmedBoundaryText === '') {
@@ -1105,23 +1495,27 @@ class WcSpeech extends HTMLElement {
     return range;
   }
 
-  #setSentenceHighlight(textNode, range) {
-    if (
-      this.#lastSentenceNode === textNode
-      && this.#lastSentenceStart === range.startOffset
-      && this.#lastSentenceEnd === range.endOffset
-    ) {
+  #setSentenceHighlight(range) {
+    if (this.#rangesEqual(this.#lastSentenceRange, range)) {
       return;
     }
 
     this.#sentenceHighlight.clear();
     this.#sentenceHighlight.add(range);
-    this.#lastSentenceNode = textNode;
-    this.#lastSentenceStart = range.startOffset;
-    this.#lastSentenceEnd = range.endOffset;
+    this.#lastSentenceRange = range;
   }
 
-  #setSentenceHighlightAroundWord(textNode, sentenceRange, wordRange) {
+  #setSentenceHighlightAroundWord(sentenceRange, wordRange) {
+    if (
+      sentenceRange.startContainer !== sentenceRange.endContainer
+      || wordRange.startContainer !== wordRange.endContainer
+      || sentenceRange.startContainer !== wordRange.startContainer
+    ) {
+      this.#setSentenceHighlight(sentenceRange);
+      return;
+    }
+
+    const textNode = sentenceRange.startContainer;
     this.#sentenceHighlight.clear();
 
     if (sentenceRange.startOffset < wordRange.startOffset) {
@@ -1138,9 +1532,7 @@ class WcSpeech extends HTMLElement {
       this.#sentenceHighlight.add(after);
     }
 
-    this.#lastSentenceNode = textNode;
-    this.#lastSentenceStart = sentenceRange.startOffset;
-    this.#lastSentenceEnd = sentenceRange.endOffset;
+    this.#lastSentenceRange = sentenceRange;
   }
 
   #setHighlightedElement(element, type = 'sentence') {
@@ -1164,7 +1556,7 @@ class WcSpeech extends HTMLElement {
   #highlightEntry(entry) {
     const textNode = entry.node;
 
-    if (this.#nodeParent.has(textNode)) {
+    if (textNode && this.#nodeParent.has(textNode)) {
       const element = this.#nodeParent.get(textNode);
       this.#wordHighlight?.clear();
       this.#sentenceHighlight?.clear();
@@ -1173,8 +1565,8 @@ class WcSpeech extends HTMLElement {
       return;
     }
 
-    const parent = textNode.parentElement;
     const range = this.#entryRange(entry);
+    const parent = textNode?.parentElement ?? entry.spans?.find((span) => span.node)?.node.parentElement;
     if (!this.#wordHighlight || !this.#sentenceHighlight || !range) {
       this.#setHighlightedElement(parent);
       this.#scheduleFollowInView(range ?? parent);
@@ -1183,7 +1575,7 @@ class WcSpeech extends HTMLElement {
 
     this.#setHighlightedElement(null);
     this.#wordHighlight.clear();
-    this.#setSentenceHighlight(textNode, range);
+    this.#setSentenceHighlight(range);
     this.#scheduleFollowInView(range);
   }
 
@@ -1290,12 +1682,14 @@ class WcSpeech extends HTMLElement {
       index: this.#nodeIndex,
       total: this.#nodeList.length,
     });
+    this.#bindEscapeStop();
     this.#speakEntry(speakId);
   }
 
   #speakEntry(speakId) {
     if (speakId !== this.#speakId || this.#nodeIndex >= this.#nodeList.length) {
       if (speakId === this.#speakId) {
+        this.#unbindEscapeStop();
         this.#clearKeepAlive();
         this.#clearHighlight();
         this.classList.remove('speaking');
@@ -1310,9 +1704,11 @@ class WcSpeech extends HTMLElement {
 
     const entry = this.#nodeList[this.#nodeIndex];
     const textNode = entry.node;
-    const text = Number.isFinite(entry.start) && Number.isFinite(entry.end)
-      ? textNode.textContent.slice(entry.start, entry.end)
-      : textNode.textContent;
+    const text = typeof entry.text === 'string'
+      ? entry.text
+      : Number.isFinite(entry.start) && Number.isFinite(entry.end)
+        ? textNode.textContent.slice(entry.start, entry.end)
+        : textNode.textContent;
     const utterance = new SpeechSynthesisUtterance(text);
     const voice = this.#voiceForEntry(entry);
     utterance.rate = this.#rate();
@@ -1346,6 +1742,7 @@ class WcSpeech extends HTMLElement {
       if (speakId !== this.#speakId) {
         return;
       }
+      this.#unbindEscapeStop();
       this.#clearKeepAlive();
       this.#clearHighlight();
       this.classList.remove('speaking');
@@ -1359,9 +1756,8 @@ class WcSpeech extends HTMLElement {
       }
 
       const reduceMotion = this.#prefersReducedMotion();
-      const offset = entry.start ?? 0;
 
-      if (this.#nodeParent.has(textNode)) {
+      if (textNode && this.#nodeParent.has(textNode)) {
         const parent = this.#nodeParent.get(textNode);
         this.#wordHighlight?.clear();
         this.#sentenceHighlight?.clear();
@@ -1369,8 +1765,11 @@ class WcSpeech extends HTMLElement {
         return;
       }
 
-      const parent = textNode.parentElement;
-      const range = this.#boundaryRange(textNode, event, offset);
+      const parent = textNode?.parentElement
+        ?? entry.spans?.find((span) => span.node)?.node.parentElement;
+      const range = entry.spans?.length
+        ? this.#boundaryRangeForEntry(entry, event)
+        : this.#boundaryRange(textNode, event, entry.start ?? 0);
       const isSentenceBoundary = event.name === 'sentence';
       const entryRange = this.#entryRange(entry);
 
@@ -1387,9 +1786,9 @@ class WcSpeech extends HTMLElement {
       if (isSentenceBoundary) {
         this.#wordHighlight.clear();
         if (entryRange) {
-          this.#setSentenceHighlight(textNode, entryRange);
+          this.#setSentenceHighlight(entryRange);
         } else if (range) {
-          this.#setSentenceHighlight(textNode, range);
+          this.#setSentenceHighlight(range);
         }
         this.#scheduleFollowInView(entryRange ?? parent);
         return;
@@ -1397,15 +1796,22 @@ class WcSpeech extends HTMLElement {
 
       if (reduceMotion) {
         if (entryRange) {
-          this.#setSentenceHighlight(textNode, entryRange);
+          this.#setSentenceHighlight(entryRange);
         }
         return;
       }
 
       if (!range) {
+        const expansionSpan = entry.spans?.find((span) => (
+          span.element
+          && event.charIndex >= span.runStart
+          && event.charIndex < span.runEnd
+        ));
         this.#wordHighlight.clear();
-        if (entryRange) {
-          this.#setSentenceHighlight(textNode, entryRange);
+        if (expansionSpan) {
+          this.#setHighlightedElement(expansionSpan.element, 'sentence');
+        } else if (entryRange) {
+          this.#setSentenceHighlight(entryRange);
         }
         return;
       }
@@ -1414,15 +1820,15 @@ class WcSpeech extends HTMLElement {
       if (!wordRange) {
         this.#wordHighlight.clear();
         if (entryRange) {
-          this.#setSentenceHighlight(textNode, entryRange);
+          this.#setSentenceHighlight(entryRange);
         }
         return;
       }
 
       const sentenceRange = entryRange
-        ?? this.#sentenceRangeAt(textNode, offset + event.charIndex, entry.lang);
+        ?? this.#sentenceRangeAt(textNode, (entry.start ?? 0) + event.charIndex, entry.lang);
       if (sentenceRange) {
-        this.#setSentenceHighlightAroundWord(textNode, sentenceRange, wordRange);
+        this.#setSentenceHighlightAroundWord(sentenceRange, wordRange);
       }
       this.#wordHighlight.clear();
       this.#wordHighlight.add(wordRange);

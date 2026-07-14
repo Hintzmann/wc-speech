@@ -94,7 +94,7 @@ The component dispatches these `CustomEvent`s (they bubble and are composed):
 | Event | When | `detail` |
 | --- | --- | --- |
 | `speech-start` | Reading begins | `{ index, total }` |
-| `speech-stop` | Reading stopped manually (`--hide-controls`, `#stopSpeech`) | `{ index }` |
+| `speech-stop` | Reading stopped manually (`Escape`, `--hide-controls`, `#stopSpeech`) | `{ index }` |
 | `speech-finish` | Last sentence completes | `{ index }` |
 | `speech-error` | Synthesis fails or speech cannot start | `{ index, code, message, error? }` |
 | `sentence-change` | Each sentence starts | `{ index, total, text }` |
