@@ -78,11 +78,12 @@ Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside
 | `[data-speech-rate]` | Form control with a numeric `.value` (range, select, or number input) for speech speed |
 | `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
 | `[popover]` | Voice and speed options panel |
+| `[popover][role="toolbar"]` | Optional selection toolbar; shown when the user marks text in `target` |
 | `[data-speech-bar]` / `.speech-bar` | Optional toolbar container; `hidden` toggled by `--show-controls` / `--hide-controls` |
 | `[role="status"]` | Optional live region (ineffective when `aria-hidden="true"` is on `<wc-speech>`) |
 | `[data-speech-error]` | Optional persistent error message area (shown when speech cannot start or synthesis fails) |
 | `data-speech-state` | Host attribute set by the component: `ready`, `speaking`, `paused`, `unsupported`, or `error` |
-| `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, etc. |
+| `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, `--speech-marked`, etc. |
 | `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside the play/pause button; the component toggles visibility |
 
 See `demo/advanced/index.html` for a complete toolbar example.
@@ -120,6 +121,11 @@ Optional enhancements:
 
 - [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static) — word and sentence highlights
 - [commandfor](https://caniuse.com/mdn-html_elements_button_commandfor) — declarative buttons (click fallback included)
+- [Popover API](https://caniuse.com/mdn-html_global_attributes_popover) — selection toolbar and voice options panel
+
+## Selection read-aloud
+
+Add a `[popover][role="toolbar"]` element inside `<wc-speech>` with a button wired to `command="--speech-marked"`. When the user marks text inside `target`, a popover appears above the selection. Only the marked text is read; the rest of the page is not spoken. `popover="auto"` provides light dismiss on click outside or <kbd>Escape</kbd>. Marked text uses flat `selection.toString()` (inline semantics such as abbr expansion are not applied).
 
 ## Attributes (summary)
 

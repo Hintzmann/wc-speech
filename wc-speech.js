@@ -44,6 +44,12 @@ class WcSpeech extends HTMLElement {
   #voiceSelect;
   #rateControl;
   #optionsPopover;
+  #selectionToolbar;
+  #markedRange = null;
+  #markedText = '';
+  #markedLang = '';
+  #speakingMarked = false;
+  #selectionChangeTimer = 0;
   #statusRegion;
   #errorRegion;
   #controlBar;
@@ -77,6 +83,24 @@ class WcSpeech extends HTMLElement {
   #onKeydown = (event) => this.#handleKeydown(event);
   #onOptionsToggle = () => this.#updateOptionsButton();
   #onScrollToggle = () => this.toggleAttribute('scroll', Boolean(this.#scrollCheckbox?.checked));
+  #onMouseup = () => {
+    setTimeout(() => this.#handleSelection(), 0);
+  };
+  #onSelectionChange = () => {
+    if (this.#selectionChangeTimer) {
+      clearTimeout(this.#selectionChangeTimer);
+    }
+
+    this.#selectionChangeTimer = setTimeout(() => {
+      this.#selectionChangeTimer = 0;
+      this.#handleSelection();
+    }, 50);
+  };
+  #onSelectionToolbarToggle = (event) => {
+    if (event.newState === 'closed') {
+      this.#clearMarkedSelection();
+    }
+  };
 
   connectedCallback() {
     if (WcSpeech.#instance && WcSpeech.#instance !== this) {
@@ -97,6 +121,7 @@ class WcSpeech extends HTMLElement {
 
     this.removeEventListener('command', this);
     this.#optionsPopover?.removeEventListener('toggle', this.#onOptionsToggle);
+    this.#unbindSelectionHandlers();
     this.#scrollCheckbox?.removeEventListener('change', this.#onScrollToggle);
     document.removeEventListener('pointerdown', this.#onPointerDown, { capture: true });
     document.removeEventListener('click', this.#onCommandButtonClick);
@@ -156,6 +181,7 @@ class WcSpeech extends HTMLElement {
     this.#applyButtonTitles();
     this.#resolveControls();
     this.#optionsPopover = this.#resolveOptionsPopover();
+    this.#selectionToolbar = this.#resolveSelectionToolbar();
     this.#statusRegion = this.#resolveStatusRegion();
     this.#errorRegion = this.#resolveErrorRegion();
     this.#controlBar = this.#resolveControlBar();
@@ -176,6 +202,7 @@ class WcSpeech extends HTMLElement {
     this.#setSpeechState('ready');
 
     this.#optionsPopover?.addEventListener('toggle', this.#onOptionsToggle);
+    this.#bindSelectionHandlers();
     this.#scrollCheckbox?.addEventListener('change', this.#onScrollToggle);
     document.addEventListener('pointerdown', this.#onPointerDown, { capture: true });
 
@@ -276,6 +303,12 @@ class WcSpeech extends HTMLElement {
       return;
     }
 
+    if (this.#isSelectionToolbarOpen()) {
+      this.#closeSelectionToolbar();
+      event.preventDefault();
+      return;
+    }
+
     if (this.#isOptionsOpen()) {
       this.#closeOptions();
       event.preventDefault();
@@ -313,6 +346,9 @@ class WcSpeech extends HTMLElement {
         break;
       case '--next-sentence':
         this.#nextSentence();
+        break;
+      case '--speech-marked':
+        this.#speakMarked();
         break;
     }
   }
@@ -562,7 +598,186 @@ class WcSpeech extends HTMLElement {
   }
 
   #resolveOptionsPopover() {
-    return this.querySelector('[popover]');
+    return this.querySelector('[popover]:not([role="toolbar"])');
+  }
+
+  #resolveSelectionToolbar() {
+    return this.querySelector('[popover][role="toolbar"]');
+  }
+
+  #bindSelectionHandlers() {
+    if (!this.#selectionToolbar) {
+      return;
+    }
+
+    this.#selectionToolbar.hidden = true;
+    this.#selectionToolbar.addEventListener('toggle', this.#onSelectionToolbarToggle);
+    document.addEventListener('mouseup', this.#onMouseup);
+    document.addEventListener('selectionchange', this.#onSelectionChange);
+  }
+
+  #unbindSelectionHandlers() {
+    if (this.#selectionChangeTimer) {
+      clearTimeout(this.#selectionChangeTimer);
+      this.#selectionChangeTimer = 0;
+    }
+
+    this.#selectionToolbar?.removeEventListener('toggle', this.#onSelectionToolbarToggle);
+    document.removeEventListener('mouseup', this.#onMouseup);
+    document.removeEventListener('selectionchange', this.#onSelectionChange);
+  }
+
+  #resolveTarget() {
+    const selector = this.getAttribute('target')?.trim();
+    if (!selector) {
+      return null;
+    }
+
+    return document.querySelector(selector);
+  }
+
+  #selectionNodeElement(node) {
+    if (!node) {
+      return null;
+    }
+
+    return node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  }
+
+  #isNodeInsideSelectionToolbar(node) {
+    const element = this.#selectionNodeElement(node);
+    return Boolean(element && this.#selectionToolbar?.contains(element));
+  }
+
+  #clearMarkedSelection() {
+    this.#markedRange = null;
+    this.#markedText = '';
+    this.#markedLang = '';
+  }
+
+  #handleSelection() {
+    if (!this.#selectionToolbar || !this.#registered) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      if (this.#isSelectionToolbarOpen()) {
+        this.#closeSelectionToolbar();
+      }
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) {
+      if (this.#isSelectionToolbarOpen()) {
+        this.#closeSelectionToolbar();
+      }
+      return;
+    }
+
+    const text = selection.toString().trim();
+    if (!text) {
+      if (this.#isSelectionToolbarOpen()) {
+        this.#closeSelectionToolbar();
+      }
+      return;
+    }
+
+    if (
+      this.#isNodeInsideSelectionToolbar(selection.anchorNode)
+      || this.#isNodeInsideSelectionToolbar(selection.focusNode)
+    ) {
+      return;
+    }
+
+    const target = this.#resolveTarget();
+    if (!target) {
+      return;
+    }
+
+    const ancestor = range.commonAncestorContainer;
+    const element = this.#selectionNodeElement(ancestor);
+    if (!element || !target.contains(element) || this.contains(element)) {
+      if (this.#isSelectionToolbarOpen()) {
+        this.#closeSelectionToolbar();
+      }
+      return;
+    }
+
+    this.#markedRange = range.cloneRange();
+    this.#markedText = selection.toString();
+    this.#markedLang = this.#inheritedLangFrom(this.#selectionNodeElement(selection.anchorNode))
+      || this.#documentLang();
+    this.#openSelectionToolbar();
+  }
+
+  #supportsSelectionPopover() {
+    const toolbar = this.#selectionToolbar;
+    return Boolean(
+      toolbar
+      && 'popover' in HTMLElement.prototype
+      && typeof toolbar.showPopover === 'function',
+    );
+  }
+
+  #isSelectionToolbarOpen() {
+    if (!this.#selectionToolbar) {
+      return false;
+    }
+
+    return this.#supportsSelectionPopover()
+      ? this.#selectionToolbar.matches(':popover-open')
+      : !this.#selectionToolbar.hidden;
+  }
+
+  #positionSelectionToolbar() {
+    const toolbar = this.#selectionToolbar;
+    const range = this.#markedRange;
+    if (!toolbar || !range) {
+      return;
+    }
+
+    toolbar.hidden = false;
+    if (this.#supportsSelectionPopover() && !this.#isSelectionToolbarOpen()) {
+      toolbar.showPopover();
+    }
+
+    const rect = range.getBoundingClientRect();
+    const width = toolbar.offsetWidth;
+    const height = toolbar.offsetHeight;
+    const gap = 8;
+    const margin = 8;
+
+    let left = rect.left + rect.width / 2 - width / 2;
+    let top = rect.top - height - gap;
+
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+    top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+
+    toolbar.style.left = `${left}px`;
+    toolbar.style.top = `${top}px`;
+  }
+
+  #openSelectionToolbar() {
+    if (!this.#selectionToolbar) {
+      return;
+    }
+
+    this.#positionSelectionToolbar();
+  }
+
+  #closeSelectionToolbar() {
+    if (!this.#selectionToolbar) {
+      return;
+    }
+
+    if (this.#supportsSelectionPopover() && this.#isSelectionToolbarOpen()) {
+      this.#selectionToolbar.hidePopover();
+    }
+
+    this.#selectionToolbar.hidden = true;
+    this.#clearMarkedSelection();
   }
 
   #supportsPopover() {
@@ -683,6 +898,7 @@ class WcSpeech extends HTMLElement {
 
   #stopSpeech() {
     this.#unbindEscapeStop();
+    this.#speakingMarked = false;
 
     if (this.classList.contains('speaking')) {
       this.#resumeNodeIndex = this.#nodeIndex;
@@ -1554,6 +1770,14 @@ class WcSpeech extends HTMLElement {
   }
 
   #highlightEntry(entry) {
+    if (this.#speakingMarked && this.#markedRange) {
+      this.#wordHighlight?.clear();
+      this.#setHighlightedElement(null);
+      this.#setSentenceHighlight(this.#markedRange.cloneRange());
+      this.#scheduleFollowInView(this.#markedRange);
+      return;
+    }
+
     const textNode = entry.node;
 
     if (textNode && this.#nodeParent.has(textNode)) {
@@ -1577,6 +1801,71 @@ class WcSpeech extends HTMLElement {
     this.#wordHighlight.clear();
     this.#setSentenceHighlight(range);
     this.#scheduleFollowInView(range);
+  }
+
+  #speakMarked() {
+    const text = this.#markedText?.trim();
+    if (!text) {
+      return;
+    }
+
+    const lang = this.#markedLang || this.#documentLang();
+    const markedRange = this.#markedRange?.cloneRange();
+
+    this.#closeSelectionToolbar();
+    this.#resumeNodeIndex = null;
+    this.#speakingMarked = true;
+    this.#markedRange = markedRange;
+
+    if (this.classList.contains('speaking')) {
+      this.#speakId += 1;
+      this.#clearKeepAlive();
+      this.#cancelScheduledScroll();
+      speechSynthesis.cancel();
+      this.#clearHighlight();
+      this.classList.remove('speaking');
+      this.#paused = false;
+      this.#setSpeechState('ready');
+      this.#updateControlState();
+    }
+
+    const segments = this.#sentenceSegmentsForText(text, lang);
+    this.#nodeList = [];
+
+    for (const segment of segments) {
+      const slice = text.slice(segment.start, segment.end);
+      if (slice.trim() === '') {
+        continue;
+      }
+
+      this.#nodeList.push({ text: slice, lang });
+    }
+
+    if (this.#nodeList.length === 0) {
+      this.#speakingMarked = false;
+      this.#markedRange = null;
+      return;
+    }
+
+    this.#nodeIndex = 0;
+    this.#clearError();
+
+    const voiceIndex = this.#voiceSelect?.selectedIndex ?? -1;
+    this.#defaultVoice = voiceIndex >= 0 ? this.#voices[voiceIndex] : null;
+    this.#defaultLang = lang;
+
+    this.classList.add('speaking');
+    this.#announce(this.#text('status-speaking'));
+    this.#setSpeechState('speaking');
+    this.#updateControlState();
+    this.#dispatch('speech-start', {
+      index: 0,
+      total: this.#nodeList.length,
+    });
+    this.#bindEscapeStop();
+
+    const speakId = ++this.#speakId;
+    this.#speakEntry(speakId);
   }
 
   #playpause() {
@@ -1694,6 +1983,8 @@ class WcSpeech extends HTMLElement {
         this.#clearHighlight();
         this.classList.remove('speaking');
         this.#paused = false;
+        this.#speakingMarked = false;
+        this.#markedRange = null;
         this.#announce(this.#text('status-finished'));
         this.#setSpeechState('ready');
         this.#updateControlState();
