@@ -123,6 +123,7 @@ function assignGlobals(window) {
   globalThis.Range = window.Range;
   globalThis.CustomEvent = window.CustomEvent;
   globalThis.Event = window.Event;
+  globalThis.KeyboardEvent = window.KeyboardEvent;
   globalThis.requestAnimationFrame = (callback) => {
     callback();
     return 0;

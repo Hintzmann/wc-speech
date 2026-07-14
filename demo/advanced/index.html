@@ -279,6 +279,12 @@
           <dd>Show or hide the voice and speed options popover.</dd>
         </dl>
 
+        <h3>Keyboard</h3>
+        <dl>
+          <dt><kbd>Escape</kbd></dt>
+          <dd>While speech is active, stops reading and clears highlights (same as hiding the control bar). If the voice options popover is open, the first <kbd>Escape</kbd> closes it without stopping speech.</dd>
+        </dl>
+
         <h3>Events</h3>
         <p>
           The component dispatches bubbling, composed <code>CustomEvent</code>s you can listen for:
@@ -353,7 +359,7 @@
 
         <p class="speech-controls">
           <button type="button" commandfor="speech" command="--previous-sentence" aria-label="Previous sentence">⏪</button>
-          <button type="button" commandfor="speech" command="--playpause">
+          <button type="button" commandfor="speech" command="--playpause" title="Read aloud, press escape to stop">
             <span data-speech-face="play" aria-hidden="true">▶️</span>
             <span data-speech-face="pause" aria-hidden="true" hidden>⏸️</span>
           </button>
