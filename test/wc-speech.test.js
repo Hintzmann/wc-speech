@@ -73,6 +73,43 @@ function clickMarked() {
   document.getElementById('marked').click();
 }
 
+function selectAllIn(element) {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+}
+
+function setupSelectionArticle(markup, lang = 'en') {
+  document.documentElement.setAttribute('lang', lang);
+  setupDom(`
+    <button type="button" id="marked" commandfor="speech" command="--speech-marked">Read selection</button>
+    <wc-speech id="speech" target="#article">
+      <div id="selection-toolbar" popover="auto" role="toolbar" hidden>
+        <button type="button" commandfor="speech" command="--speech-marked">Read selection</button>
+      </div>
+    </wc-speech>
+    <article id="article">${markup}</article>
+  `);
+}
+
+async function speakMarkedSelection(selectFn) {
+  await selectFn(document.querySelector('#article'));
+  mouseup();
+  await flushDeferredSelection();
+  clickMarked();
+
+  while (speechElement().classList.contains('speaking')) {
+    const utterances = speechMocks().utterances;
+    speechMocks().fireEnd(utterances[utterances.length - 1]);
+  }
+
+  return speechMocks().utterances.map((utterance) => ({
+    text: utterance.text,
+    lang: utterance.lang,
+  }));
+}
+
 function speechElement() {
   return document.getElementById('speech');
 }
@@ -500,6 +537,61 @@ describe('wc-speech integration', () => {
 
       const utterance = speechMocks().utterances.at(-1);
       assert.equal(utterance.text, 'Hello');
+    });
+
+    it('expands abbr title text when the marked selection includes the abbreviation', async () => {
+      setupSelectionArticle(`
+        <p>På Skagens Museum kan man se en udstilling om <abbr title="Peder Severin Krøyer">P.S. Krøyer</abbr> og den franske kunstscene.</p>
+      `, 'da');
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectAllIn(article.querySelector('p'));
+      });
+
+      assert.equal(utterances.length, 1);
+      assert.match(utterances[0].text, /Peder Severin Krøyer/);
+      assert.doesNotMatch(utterances[0].text, /P\.S\. Krøyer/);
+    });
+
+    it('skips aria-hidden inline content inside a marked selection', async () => {
+      setupSelectionArticle(`
+        <p>Press <strong><span aria-hidden="true">🗣️</span> Listen</strong> to hear this article.</p>
+      `);
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectAllIn(article.querySelector('p'));
+      });
+
+      assert.equal(utterances.length, 1);
+      assert.equal(utterances[0].text, 'Press Listen to hear this article.');
+      assert.doesNotMatch(utterances[0].text, /🗣️/);
+    });
+
+    it('uses separate language runs for mixed-language marked selections', async () => {
+      setupSelectionArticle(`
+        <p>Et højdepunkt er Claude Monets "<span lang="fr">Impression, soleil levant</span>" på museet.</p>
+      `, 'da');
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectAllIn(article.querySelector('p'));
+      });
+
+      assert.equal(utterances.length, 3);
+      assert.match(utterances[0].text, /Claude Monets/);
+      assert.equal(utterances[1].text, 'Impression, soleil levant');
+      assert.equal(utterances[1].lang, 'fr');
+      assert.equal(utterances[2].text, '" på museet.');
+    });
+
+    it('clips marked speech to a partial sentence', async () => {
+      setupSelectionArticle('<p>Hello world.</p>');
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectTextIn(article.querySelector('p'), 6, 11);
+      });
+
+      assert.equal(utterances.length, 1);
+      assert.equal(utterances[0].text, 'world');
     });
 
     it('closes the selection toolbar on Escape without stopping speech', async () => {

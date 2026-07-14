@@ -125,7 +125,7 @@ Optional enhancements:
 
 ## Selection read-aloud
 
-Add a `[popover][role="toolbar"]` element inside `<wc-speech>` with a button wired to `command="--speech-marked"`. When the user marks text inside `target`, a popover appears above the selection. Only the marked text is read; the rest of the page is not spoken. `popover="auto"` provides light dismiss on click outside or <kbd>Escape</kbd>. Marked text uses flat `selection.toString()` (inline semantics such as abbr expansion are not applied).
+Add a `[popover][role="toolbar"]` element inside `<wc-speech>` with a button wired to `command="--speech-marked"`. When the user marks text inside `target`, a popover appears above the selection. Only the marked text is read; the rest of the page is not spoken. Selection uses the same DOM collection pipeline as full-page speech (abbreviation expansion, `lang` runs, `aria-hidden` skip, and per-sentence highlighting). `popover="auto"` provides light dismiss on click outside or <kbd>Escape</kbd>.
 
 ## Attributes (summary)
 

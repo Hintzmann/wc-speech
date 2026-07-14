@@ -264,7 +264,7 @@
           <dd>Set to <code>true</code> when the component connects so screen readers and other assistive technology stay out of the speech tool. Sighted users interact with visible controls; the tool is not a replacement for assistive technology.</dd>
 
           <dt><code>[popover][role="toolbar"]</code></dt>
-          <dd>Optional selection toolbar inside <code>&lt;wc-speech&gt;</code>. Shown above text the user selects in the <code>target</code> content. Wire a button to <code>command="--speech-marked"</code> to read only the marked text. Use <code>popover="auto"</code> for light dismiss on click outside or <kbd>Escape</kbd>. Distinct from the voice options <code>[popover]</code> panel.</dd>
+          <dd>Optional selection toolbar inside <code>&lt;wc-speech&gt;</code>. Shown above text the user selects in the <code>target</code> content. Wire a button to <code>command="--speech-marked"</code> to read only the marked text using the same DOM collection, language, and abbreviation rules as full-page speech. Use <code>popover="auto"</code> for light dismiss on click outside or <kbd>Escape</kbd>. Distinct from the voice options <code>[popover]</code> panel.</dd>
         </dl>
 
         <h3>Commands</h3>
