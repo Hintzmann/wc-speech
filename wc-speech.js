@@ -47,8 +47,7 @@ class WcSpeech extends HTMLElement {
   #selectionToolbar;
   #markedRange = null;
   #markedText = '';
-  #markedLang = '';
-  #speakingMarked = false;
+  #markedRangeBoundaries = null;
   #selectionChangeTimer = 0;
   #statusRegion;
   #errorRegion;
@@ -71,6 +70,7 @@ class WcSpeech extends HTMLElement {
   #supportsSpeech = false;
   #registered = false;
   #paused = false;
+  #speechSource = null;
   #speakId = 0;
   #keepAliveTimer = null;
   #scrollRaf = 0;
@@ -439,11 +439,15 @@ class WcSpeech extends HTMLElement {
   }
 
   #buttonForCommand(command) {
+    return this.#buttonsForCommand(command)[0] ?? null;
+  }
+
+  #buttonsForCommand(command) {
     if (!this.id) {
-      return null;
+      return [];
     }
 
-    return document.querySelector(
+    return document.querySelectorAll(
       `button[commandfor="${CSS.escape(this.id)}"][command="${CSS.escape(command)}"]`,
     );
   }
@@ -451,20 +455,24 @@ class WcSpeech extends HTMLElement {
   #updateControlState() {
     const isActive = this.#supportsSpeech && this.classList.contains('speaking');
     const isPaused = this.#supportsSpeech && this.#paused;
-    const playPause = this.#buttonForCommand('--playpause');
     const previous = this.#buttonForCommand('--previous-sentence');
     const next = this.#buttonForCommand('--next-sentence');
+    const action = !isActive || isPaused ? 'play' : 'pause';
 
     this.#voiceSelect?.toggleAttribute('disabled', !this.#supportsSpeech);
     this.#rateControl?.toggleAttribute('disabled', !this.#supportsSpeech);
     this.#scrollCheckbox?.toggleAttribute('disabled', !this.#supportsSpeech);
-    playPause?.toggleAttribute('disabled', !this.#supportsSpeech);
     previous?.toggleAttribute('disabled', !isActive || this.#nodeIndex <= 0);
     next?.toggleAttribute('disabled', !isActive || this.#nodeIndex >= this.#nodeList.length - 1);
 
-    if (playPause) {
-      const action = !isActive || isPaused ? 'play' : 'pause';
-      this.#syncPlayPauseButton(playPause, action);
+    for (const button of this.#buttonsForCommand('--playpause')) {
+      button.toggleAttribute('disabled', !this.#supportsSpeech);
+      this.#syncPlayPauseButton(button, action);
+    }
+
+    for (const button of this.#buttonsForCommand('--speech-marked')) {
+      button.toggleAttribute('disabled', !this.#supportsSpeech);
+      this.#syncPlayPauseButton(button, action);
     }
   }
 
@@ -652,7 +660,22 @@ class WcSpeech extends HTMLElement {
   #clearMarkedSelection() {
     this.#markedRange = null;
     this.#markedText = '';
-    this.#markedLang = '';
+    this.#markedRangeBoundaries = null;
+  }
+
+  #resolveMarkedRange() {
+    if (this.#markedRangeBoundaries) {
+      const { startContainer, startOffset, endContainer, endOffset } = this.#markedRangeBoundaries;
+      const range = document.createRange();
+      range.setStart(startContainer, startOffset);
+      range.setEnd(endContainer, endOffset);
+      if (!range.collapsed) {
+        return range;
+      }
+    }
+
+    const clone = this.#markedRange?.cloneRange();
+    return clone?.collapsed ? null : clone ?? null;
   }
 
   #handleSelection() {
@@ -707,8 +730,12 @@ class WcSpeech extends HTMLElement {
 
     this.#markedRange = range.cloneRange();
     this.#markedText = selection.toString();
-    this.#markedLang = this.#inheritedLangFrom(this.#selectionNodeElement(selection.anchorNode))
-      || this.#documentLang();
+    this.#markedRangeBoundaries = {
+      startContainer: range.startContainer,
+      startOffset: range.startOffset,
+      endContainer: range.endContainer,
+      endOffset: range.endOffset,
+    };
     this.#openSelectionToolbar();
   }
 
@@ -898,7 +925,6 @@ class WcSpeech extends HTMLElement {
 
   #stopSpeech() {
     this.#unbindEscapeStop();
-    this.#speakingMarked = false;
 
     if (this.classList.contains('speaking')) {
       this.#resumeNodeIndex = this.#nodeIndex;
@@ -911,6 +937,7 @@ class WcSpeech extends HTMLElement {
     this.#clearHighlight();
     this.classList.remove('speaking');
     this.#paused = false;
+    this.#speechSource = null;
     this.#announce('');
     this.#setSpeechState('ready');
     this.#updateControlState();
@@ -1011,6 +1038,273 @@ class WcSpeech extends HTMLElement {
       }
       select.appendChild(option);
     }
+  }
+
+  #resetNodeListState() {
+    this.#nodeList = [];
+    this.#nodeIndex = 0;
+    this.#nodeParent = new WeakMap();
+    this.#sentenceSegments = new WeakMap();
+  }
+
+  #collectNodeListFromTarget(target, inheritedLang) {
+    this.#resetNodeListState();
+    this.#collectNodes(target, inheritedLang);
+    return this.#nodeList;
+  }
+
+  #rangesOverlap(a, b) {
+    if (!a || !b) {
+      return false;
+    }
+
+    return a.compareBoundaryPoints(Range.END_TO_START, b) > 0
+      && b.compareBoundaryPoints(Range.END_TO_START, a) > 0;
+  }
+
+  #rangeIntersectsSelection(entryRange, selectionRange) {
+    if (!entryRange || !selectionRange) {
+      return false;
+    }
+
+    if (this.#rangesOverlap(entryRange, selectionRange)) {
+      return true;
+    }
+
+    if (typeof selectionRange.intersectsNode !== 'function') {
+      return false;
+    }
+
+    return selectionRange.intersectsNode(entryRange.startContainer)
+      || selectionRange.intersectsNode(entryRange.endContainer);
+  }
+
+  #clipRangeToOverlap(a, b) {
+    if (!this.#rangeIntersectsSelection(a, b)) {
+      return null;
+    }
+
+    const clipped = document.createRange();
+
+    if (a.compareBoundaryPoints(Range.START_TO_START, b) <= 0) {
+      clipped.setStart(b.startContainer, b.startOffset);
+    } else {
+      clipped.setStart(a.startContainer, a.startOffset);
+    }
+
+    if (a.compareBoundaryPoints(Range.END_TO_END, b) >= 0) {
+      clipped.setEnd(b.endContainer, b.endOffset);
+    } else {
+      clipped.setEnd(a.endContainer, a.endOffset);
+    }
+
+    return clipped.collapsed ? null : clipped;
+  }
+
+  #entryDomRange(entry) {
+    const range = this.#entryRange(entry);
+    if (range) {
+      return range;
+    }
+
+    const textNode = entry.node;
+    if (!textNode) {
+      return null;
+    }
+
+    if (this.#nodeParent.has(textNode)) {
+      const element = this.#nodeParent.get(textNode);
+      const syntheticRange = document.createRange();
+      syntheticRange.selectNode(element);
+      return syntheticRange;
+    }
+
+    const nodeRange = document.createRange();
+    nodeRange.selectNodeContents(textNode);
+    return nodeRange;
+  }
+
+  #spanDomRange(span) {
+    const range = document.createRange();
+
+    if (span.element) {
+      range.selectNode(span.element);
+      return range;
+    }
+
+    if (!span.node) {
+      return null;
+    }
+
+    range.setStart(span.node, span.start);
+    range.setEnd(span.node, span.end);
+    return range;
+  }
+
+  #clipTextNodeEntryToRange(entry, selectionRange) {
+    const entryRange = this.#entryDomRange(entry);
+    const clippedRange = this.#clipRangeToOverlap(entryRange, selectionRange);
+    if (!clippedRange || clippedRange.startContainer !== entry.node || clippedRange.endContainer !== entry.node) {
+      return null;
+    }
+
+    const start = Number.isFinite(entry.start)
+      ? Math.max(entry.start, clippedRange.startOffset)
+      : clippedRange.startOffset;
+    const end = Number.isFinite(entry.end)
+      ? Math.min(entry.end, clippedRange.endOffset)
+      : clippedRange.endOffset;
+    if (start >= end) {
+      return null;
+    }
+
+    return {
+      node: entry.node,
+      lang: entry.lang,
+      start,
+      end,
+    };
+  }
+
+  #clipSpanEntryToRange(entry, selectionRange) {
+    const entryRange = this.#entryDomRange(entry);
+    const clippedEntryRange = this.#clipRangeToOverlap(entryRange, selectionRange);
+    if (!clippedEntryRange) {
+      return null;
+    }
+
+    const textParts = [];
+    const spanParts = [];
+
+    for (const span of entry.spans) {
+      const spanRange = this.#spanDomRange(span);
+      if (!spanRange || !this.#rangeIntersectsSelection(spanRange, selectionRange)) {
+        continue;
+      }
+
+      if (span.element) {
+        const text = entry.text.slice(span.runStart, span.runEnd);
+        if (text.trim() === '') {
+          continue;
+        }
+
+        textParts.push(text);
+        spanParts.push({
+          element: span.element,
+          start: 0,
+          end: text.length,
+        });
+        continue;
+      }
+
+      const clippedSpanRange = this.#clipRangeToOverlap(spanRange, clippedEntryRange);
+      if (!clippedSpanRange || clippedSpanRange.startContainer !== span.node || clippedSpanRange.endContainer !== span.node) {
+        continue;
+      }
+
+      const start = Math.max(span.start, clippedSpanRange.startOffset);
+      const end = Math.min(span.end, clippedSpanRange.endOffset);
+      if (start >= end) {
+        continue;
+      }
+
+      textParts.push(span.node.textContent.slice(start, end));
+      spanParts.push({
+        node: span.node,
+        start,
+        end,
+      });
+    }
+
+    if (spanParts.length === 0) {
+      return null;
+    }
+
+    const text = textParts.join('');
+    if (text.trim() === '') {
+      return null;
+    }
+
+    let offset = 0;
+    const spans = spanParts.map((span, index) => {
+      const partText = textParts[index];
+      const runStart = offset;
+      offset += partText.length;
+      return {
+        ...span,
+        runStart,
+        runEnd: offset,
+      };
+    });
+
+    const clipped = {
+      text,
+      lang: entry.lang,
+      spans,
+    };
+
+    const firstTextSpan = spans.find((span) => span.node);
+    if (spans.length === 1 && firstTextSpan) {
+      clipped.node = firstTextSpan.node;
+      clipped.start = firstTextSpan.start;
+      clipped.end = firstTextSpan.end;
+    } else if (firstTextSpan) {
+      clipped.node = firstTextSpan.node;
+      clipped.start = firstTextSpan.start;
+      clipped.end = firstTextSpan.end;
+    }
+
+    return clipped;
+  }
+
+  #clipEntryToRange(entry, selectionRange) {
+    const entryRange = this.#entryDomRange(entry);
+    if (!entryRange || !this.#rangeIntersectsSelection(entryRange, selectionRange)) {
+      return null;
+    }
+
+    const textNode = entry.node;
+    if (
+      textNode
+      && this.#nodeParent.has(textNode)
+      && !entry.spans?.length
+      && !Number.isFinite(entry.start)
+    ) {
+      const element = this.#nodeParent.get(textNode);
+      return typeof selectionRange.intersectsNode === 'function' && selectionRange.intersectsNode(element)
+        ? entry
+        : null;
+    }
+
+    if (
+      selectionRange.compareBoundaryPoints(Range.START_TO_START, entryRange) <= 0
+      && selectionRange.compareBoundaryPoints(Range.END_TO_END, entryRange) >= 0
+    ) {
+      return entry;
+    }
+
+    if (entry.spans?.length) {
+      return this.#clipSpanEntryToRange(entry, selectionRange);
+    }
+
+    if (textNode && Number.isFinite(entry.start) && Number.isFinite(entry.end)) {
+      return this.#clipTextNodeEntryToRange(entry, selectionRange);
+    }
+
+    return null;
+  }
+
+  #filterNodeListToRange(nodeList, selectionRange) {
+    const filtered = [];
+
+    for (const entry of nodeList) {
+      const clipped = this.#clipEntryToRange(entry, selectionRange);
+      if (clipped && this.#entryText(clipped)) {
+        filtered.push(clipped);
+      }
+    }
+
+    return filtered;
   }
 
   #pushSynthetic(element, text, lang) {
@@ -1770,14 +2064,6 @@ class WcSpeech extends HTMLElement {
   }
 
   #highlightEntry(entry) {
-    if (this.#speakingMarked && this.#markedRange) {
-      this.#wordHighlight?.clear();
-      this.#setHighlightedElement(null);
-      this.#setSentenceHighlight(this.#markedRange.cloneRange());
-      this.#scheduleFollowInView(this.#markedRange);
-      return;
-    }
-
     const textNode = entry.node;
 
     if (textNode && this.#nodeParent.has(textNode)) {
@@ -1804,18 +2090,43 @@ class WcSpeech extends HTMLElement {
   }
 
   #speakMarked() {
-    const text = this.#markedText?.trim();
-    if (!text) {
+    if (this.classList.contains('speaking') && this.#speechSource === 'marked') {
+      this.#closeSelectionToolbar();
+      if (this.#paused) {
+        this.#resumeSpeech();
+      } else {
+        this.#pauseSpeech();
+      }
       return;
     }
 
-    const lang = this.#markedLang || this.#documentLang();
-    const markedRange = this.#markedRange?.cloneRange();
+    const markedRange = this.#resolveMarkedRange();
+    if (!markedRange) {
+      return;
+    }
 
+    window.getSelection()?.removeAllRanges();
     this.#closeSelectionToolbar();
+
+    const targetSelector = this.getAttribute('target')?.trim();
+    if (!targetSelector) {
+      this.#reportError('missing-target');
+      return;
+    }
+
+    this.#target = document.querySelector(targetSelector);
+    if (!this.#target) {
+      this.#reportError('target-not-found');
+      return;
+    }
+
+    const documentLang = this.#documentLang();
+    if (!documentLang) {
+      this.#reportError('missing-lang');
+      return;
+    }
+
     this.#resumeNodeIndex = null;
-    this.#speakingMarked = true;
-    this.#markedRange = markedRange;
 
     if (this.classList.contains('speaking')) {
       this.#speakId += 1;
@@ -1825,35 +2136,26 @@ class WcSpeech extends HTMLElement {
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
-      this.#setSpeechState('ready');
-      this.#updateControlState();
+      this.#speechSource = null;
     }
 
-    const segments = this.#sentenceSegmentsForText(text, lang);
-    this.#nodeList = [];
-
-    for (const segment of segments) {
-      const slice = text.slice(segment.start, segment.end);
-      if (slice.trim() === '') {
-        continue;
-      }
-
-      this.#nodeList.push({ text: slice, lang });
-    }
+    const targetInheritedLang = this.#inheritedLangFrom(this.#target.parentElement) || documentLang;
+    const fullList = this.#collectNodeListFromTarget(this.#target, targetInheritedLang);
+    this.#nodeList = this.#filterNodeListToRange(fullList, markedRange);
 
     if (this.#nodeList.length === 0) {
-      this.#speakingMarked = false;
-      this.#markedRange = null;
+      this.#reportError('empty-content');
       return;
     }
 
-    this.#nodeIndex = 0;
     this.#clearError();
 
     const voiceIndex = this.#voiceSelect?.selectedIndex ?? -1;
     this.#defaultVoice = voiceIndex >= 0 ? this.#voices[voiceIndex] : null;
-    this.#defaultLang = lang;
+    this.#defaultLang = targetInheritedLang;
 
+    this.#nodeIndex = 0;
+    this.#speechSource = 'marked';
     this.classList.add('speaking');
     this.#announce(this.#text('status-speaking'));
     this.#setSpeechState('speaking');
@@ -1868,6 +2170,25 @@ class WcSpeech extends HTMLElement {
     this.#speakEntry(speakId);
   }
 
+  #pauseSpeech() {
+    this.#paused = true;
+    this.#speakId += 1;
+    this.#clearKeepAlive();
+    speechSynthesis.cancel();
+    this.#announce(this.#text('status-paused'));
+    this.#setSpeechState('paused');
+    this.#updateControlState();
+  }
+
+  #resumeSpeech() {
+    this.#paused = false;
+    const speakId = ++this.#speakId;
+    this.#announce(this.#text('status-speaking'));
+    this.#setSpeechState('speaking');
+    this.#updateControlState();
+    this.#speakEntry(speakId);
+  }
+
   #playpause() {
     if (!this.classList.contains('speaking')) {
       this.#speak();
@@ -1875,20 +2196,9 @@ class WcSpeech extends HTMLElement {
     }
 
     if (this.#paused) {
-      this.#paused = false;
-      const speakId = ++this.#speakId;
-      this.#announce(this.#text('status-speaking'));
-      this.#setSpeechState('speaking');
-      this.#updateControlState();
-      this.#speakEntry(speakId);
+      this.#resumeSpeech();
     } else {
-      this.#paused = true;
-      this.#speakId += 1;
-      this.#clearKeepAlive();
-      speechSynthesis.cancel();
-      this.#announce(this.#text('status-paused'));
-      this.#setSpeechState('paused');
-      this.#updateControlState();
+      this.#pauseSpeech();
     }
   }
 
@@ -1942,11 +2252,7 @@ class WcSpeech extends HTMLElement {
     const targetInheritedLang = this.#inheritedLangFrom(this.#target.parentElement) || documentLang;
     const resumeNodeIndex = this.#resumeNodeIndex;
     this.#resumeNodeIndex = null;
-    this.#nodeList = [];
-    this.#nodeIndex = 0;
-    this.#nodeParent = new WeakMap();
-    this.#sentenceSegments = new WeakMap();
-    this.#collectNodes(this.#target, targetInheritedLang);
+    this.#collectNodeListFromTarget(this.#target, targetInheritedLang);
 
     if (this.#nodeList.length === 0) {
       this.#reportError('empty-content');
@@ -1962,6 +2268,7 @@ class WcSpeech extends HTMLElement {
     const voiceIndex = this.#voiceSelect?.selectedIndex ?? -1;
     this.#defaultVoice = voiceIndex >= 0 ? this.#voices[voiceIndex] : null;
     this.#defaultLang = targetInheritedLang;
+    this.#speechSource = 'full';
 
     this.classList.add('speaking');
     this.#announce(this.#text('status-speaking'));
@@ -1983,8 +2290,7 @@ class WcSpeech extends HTMLElement {
         this.#clearHighlight();
         this.classList.remove('speaking');
         this.#paused = false;
-        this.#speakingMarked = false;
-        this.#markedRange = null;
+        this.#speechSource = null;
         this.#announce(this.#text('status-finished'));
         this.#setSpeechState('ready');
         this.#updateControlState();
@@ -2038,6 +2344,7 @@ class WcSpeech extends HTMLElement {
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
+      this.#speechSource = null;
       this.#updateControlState();
       this.#reportError('synthesis-failed', { error: event.error ?? 'synthesis-failed' });
     });

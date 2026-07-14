@@ -176,6 +176,20 @@ function installPopoverMocks() {
       };
     };
   }
+
+  if (!Range.prototype.intersectsNode) {
+    Range.prototype.intersectsNode = function intersectsNode(node) {
+      const nodeRange = document.createRange();
+      try {
+        nodeRange.selectNodeContents(node);
+      } catch {
+        nodeRange.selectNode(node);
+      }
+
+      return this.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0
+        && nodeRange.compareBoundaryPoints(Range.END_TO_START, this) < 0;
+    };
+  }
 }
 
 function assignGlobals(window) {

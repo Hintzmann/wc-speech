@@ -84,7 +84,7 @@ Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside
 | `[data-speech-error]` | Optional persistent error message area (shown when speech cannot start or synthesis fails) |
 | `data-speech-state` | Host attribute set by the component: `ready`, `speaking`, `paused`, `unsupported`, or `error` |
 | `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, `--speech-marked`, etc. |
-| `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside the play/pause button; the component toggles visibility |
+| `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside `--playpause` or `--speech-marked` buttons; the component toggles visibility |
 
 See `demo/advanced/index.html` for a complete toolbar example.
 
@@ -125,7 +125,7 @@ Optional enhancements:
 
 ## Selection read-aloud
 
-Add a `[popover][role="toolbar"]` element inside `<wc-speech>` with a button wired to `command="--speech-marked"`. When the user marks text inside `target`, a popover appears above the selection. Only the marked text is read; the rest of the page is not spoken. `popover="auto"` provides light dismiss on click outside or <kbd>Escape</kbd>. Marked text uses flat `selection.toString()` (inline semantics such as abbr expansion are not applied).
+Add a `[popover][role="toolbar"]` element inside `<wc-speech>` with a button wired to `command="--speech-marked"`. When the user marks text inside `target`, a popover appears above the selection. Only the marked text is read; the rest of the page is not spoken. While marked speech is active, the same button pauses or resumes (like `--playpause`); optional `data-speech-face` children can show play/pause labels. Selection uses the same DOM collection pipeline as full-page speech (abbreviation expansion, `lang` runs, `aria-hidden` skip, and per-sentence highlighting). `popover="auto"` provides light dismiss on click outside or <kbd>Escape</kbd>.
 
 ## Attributes (summary)
 

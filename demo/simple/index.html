@@ -19,7 +19,10 @@
           <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
         </button>
         <div popover="auto" role="toolbar" aria-label="Læs op funktionen" hidden>
-          <button type="button" commandfor="speech" command="--speech-marked">🗣️ Læs op</button>
+          <button type="button" commandfor="speech" command="--speech-marked" title="Læs op, tryk escape for at stoppe" data-speech-manual-a11y>
+            <span data-speech-face="play">🗣️ Læs op</span>
+            <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
+          </button>
         </div>
         <p data-speech-error role="alert" hidden></p>
       </wc-speech>

@@ -9,7 +9,7 @@
   body {
     font-family: system-ui, sans-serif;
     line-height: 1.5;
-    background-color: Canvas;
+    background-color: color-mix(in srgb, Canvas 90%, light-dark(black, white));
     color: CanvasText;
   }
 

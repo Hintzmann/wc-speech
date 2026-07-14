@@ -73,6 +73,43 @@ function clickMarked() {
   document.getElementById('marked').click();
 }
 
+function selectAllIn(element) {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+}
+
+function setupSelectionArticle(markup, lang = 'en') {
+  document.documentElement.setAttribute('lang', lang);
+  setupDom(`
+    <button type="button" id="marked" commandfor="speech" command="--speech-marked">Read selection</button>
+    <wc-speech id="speech" target="#article">
+      <div id="selection-toolbar" popover="auto" role="toolbar" hidden>
+        <button type="button" commandfor="speech" command="--speech-marked">Read selection</button>
+      </div>
+    </wc-speech>
+    <article id="article">${markup}</article>
+  `);
+}
+
+async function speakMarkedSelection(selectFn) {
+  await selectFn(document.querySelector('#article'));
+  mouseup();
+  await flushDeferredSelection();
+  clickMarked();
+
+  while (speechElement().classList.contains('speaking')) {
+    const utterances = speechMocks().utterances;
+    speechMocks().fireEnd(utterances[utterances.length - 1]);
+  }
+
+  return speechMocks().utterances.map((utterance) => ({
+    text: utterance.text,
+    lang: utterance.lang,
+  }));
+}
+
 function speechElement() {
   return document.getElementById('speech');
 }
@@ -500,6 +537,135 @@ describe('wc-speech integration', () => {
 
       const utterance = speechMocks().utterances.at(-1);
       assert.equal(utterance.text, 'Hello');
+    });
+
+    it('clears the native selection when marked speech starts', async () => {
+      const paragraph = document.querySelector('#article p');
+      const selection = selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      assert.equal(selection.toString(), 'Hello');
+
+      clickMarked();
+
+      assert.equal(selection.rangeCount, 0);
+    });
+
+    it('pauses and resumes marked speech on repeated --speech-marked clicks', async () => {
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      const speech = speechElement();
+      clickMarked();
+      assert.equal(speech.getAttribute('data-speech-state'), 'speaking');
+      assert.equal(speechMocks().utterances.length, 1);
+
+      clickMarked();
+      assert.equal(speech.getAttribute('data-speech-state'), 'paused');
+      assert.equal(speechMocks().utterances.length, 1);
+
+      clickMarked();
+      assert.equal(speech.getAttribute('data-speech-state'), 'speaking');
+      assert.equal(speechMocks().utterances.length, 2);
+    });
+
+    it('switches from full-page speech to marked speech', async () => {
+      clickPlay();
+      assert.equal(speechElement().getAttribute('data-speech-state'), 'speaking');
+
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+      clickMarked();
+
+      const utterance = speechMocks().utterances.at(-1);
+      assert.equal(utterance.text, 'Hello');
+    });
+
+    it('syncs data-speech-face on --speech-marked buttons', async () => {
+      setupSelectionArticle('<p>Hello world.</p>');
+      const markedButton = document.getElementById('marked');
+      markedButton.innerHTML = `
+        <span data-speech-face="play">Read</span>
+        <span data-speech-face="pause" hidden>Pause</span>
+      `;
+
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+      clickMarked();
+
+      const playFace = markedButton.querySelector('[data-speech-face="play"]');
+      const pauseFace = markedButton.querySelector('[data-speech-face="pause"]');
+      assert.equal(playFace.hidden, true);
+      assert.equal(pauseFace.hidden, false);
+      assert.equal(markedButton.getAttribute('data-speech-action'), 'pause');
+
+      clickMarked();
+
+      assert.equal(playFace.hidden, false);
+      assert.equal(pauseFace.hidden, true);
+      assert.equal(markedButton.getAttribute('data-speech-action'), 'play');
+    });
+
+    it('expands abbr title text when the marked selection includes the abbreviation', async () => {
+      setupSelectionArticle(`
+        <p>På Skagens Museum kan man se en udstilling om <abbr title="Peder Severin Krøyer">P.S. Krøyer</abbr> og den franske kunstscene.</p>
+      `, 'da');
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectAllIn(article.querySelector('p'));
+      });
+
+      assert.equal(utterances.length, 1);
+      assert.match(utterances[0].text, /Peder Severin Krøyer/);
+      assert.doesNotMatch(utterances[0].text, /P\.S\. Krøyer/);
+    });
+
+    it('skips aria-hidden inline content inside a marked selection', async () => {
+      setupSelectionArticle(`
+        <p>Press <strong><span aria-hidden="true">🗣️</span> Listen</strong> to hear this article.</p>
+      `);
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectAllIn(article.querySelector('p'));
+      });
+
+      assert.equal(utterances.length, 1);
+      assert.equal(utterances[0].text, 'Press Listen to hear this article.');
+      assert.doesNotMatch(utterances[0].text, /🗣️/);
+    });
+
+    it('uses separate language runs for mixed-language marked selections', async () => {
+      setupSelectionArticle(`
+        <p>Et højdepunkt er Claude Monets "<span lang="fr">Impression, soleil levant</span>" på museet.</p>
+      `, 'da');
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectAllIn(article.querySelector('p'));
+      });
+
+      assert.equal(utterances.length, 3);
+      assert.match(utterances[0].text, /Claude Monets/);
+      assert.equal(utterances[1].text, 'Impression, soleil levant');
+      assert.equal(utterances[1].lang, 'fr');
+      assert.equal(utterances[2].text, '" på museet.');
+    });
+
+    it('clips marked speech to a partial sentence', async () => {
+      setupSelectionArticle('<p>Hello world.</p>');
+
+      const utterances = await speakMarkedSelection(async (article) => {
+        selectTextIn(article.querySelector('p'), 6, 11);
+      });
+
+      assert.equal(utterances.length, 1);
+      assert.equal(utterances[0].text, 'world');
     });
 
     it('closes the selection toolbar on Escape without stopping speech', async () => {
