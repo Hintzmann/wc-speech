@@ -48,7 +48,7 @@
   wc-speech [popover][role="toolbar"] {
     background: Canvas;
     border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
-    border-radius: 0.5rem;
+    border-radius: 0.25rem;
     box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 20%);
     color: CanvasText;
     inset: unset;
