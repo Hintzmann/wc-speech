@@ -1,6 +1,6 @@
 {
   "name": "wc-speech",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "description": "Web component: in-page speech tool for readable content via the Web Speech API",
   "private": true,
   "type": "module",
