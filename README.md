@@ -4,6 +4,8 @@
 
 A small web component that adds an in-page **speech tool** for sighted users without text-to-speech software installed. Built on the [Web Speech API](https://caniuse.com/speech-synthesis). Not a replacement for assistive technology.
 
+Maintained by [Martin Hintzmann](https://github.com/Hintzmann). The component builds on ideas from [Dave Bushell's text-to-speech synthesis article](https://dbushell.com/2025/07/26/text-to-speech-synthesis/) and is developed with automated tests (Node.js + jsdom) and manual browser checks. See [Development](#development) below.
+
 ## Demo
 
 **Live demos:** [hintzmann.github.io/wc-speech/demo/](https://hintzmann.github.io/wc-speech/demo/) — [simple](https://hintzmann.github.io/wc-speech/demo/simple/) · [advanced](https://hintzmann.github.io/wc-speech/demo/advanced/).
@@ -19,24 +21,12 @@ Open [http://localhost:3000/demo/](http://localhost:3000/demo/) and choose **sim
 
 ## Quick start
 
-Copy these files into your project:
+Copy these files into your project (self-host; there is no npm package or CDN build):
 
 - `wc-speech.js` — the component (required; use for development)
 - `wc-speech.min.js` — minified build (optional; use in production)
 - `speech.css` — sentence and word highlights (required)
 - `speech-advanced.css` — optional fixed speech bar, popover, and toolbar helpers (advanced integration only)
-
-Regenerate the minified file after editing the source:
-
-```bash
-npm run build
-```
-
-Run the automated test suite (Node.js built-in test runner + jsdom):
-
-```bash
-npm test
-```
 
 Minimal wiring:
 
@@ -60,92 +50,45 @@ Minimal wiring:
 
 Use `wc-speech.min.js` instead of `wc-speech.js` in production if you do not need to read the source.
 
-See `demo/simple/index.html` for this layout, or `demo/advanced/index.html` for the full speech bar, voice picker, and documentation.
+See `demo/simple/index.html` for this layout, or `demo/advanced/index.html` for the full speech bar and voice picker.
 
-Point `target` at **readable content only**. Put `<wc-speech>` **outside** the target when you can. If `<wc-speech>` is inside the target, its subtree is skipped automatically.
+Point `target` at **readable content only**. Put `<wc-speech>` **outside** the target when you can. Set `lang` on `<html>` and on any section that uses another language.
 
-The component sets `aria-hidden="true"` on connect so screen readers stay out of the speech tool. Use `hidden` on `<wc-speech>` only as a pre-init cloak; it is removed when the component connects. In the advanced layout, put `hidden` on the speech bar (`.speech-bar` or `[data-speech-bar]`) to collapse the toolbar until `--show-controls`.
+## Documentation
 
-Set `lang` on `<html>` and on any section that uses another language.
+Full API reference, decision guide, and troubleshooting live on the demo hub:
 
-## Expected markup
+**[demo/index.html#documentation](demo/index.html#documentation)**
 
-Voice, speed, and scroll controls use `data-speech-*` hooks on elements **inside** `<wc-speech>`. Play/pause and navigation buttons may live anywhere, wired with `commandfor` and `command`. Buttons are resolved at interaction time, so they can be added to the page after the component connects (for example after a client-side route change).
-
-| Hook | Purpose |
+| Topic | Section |
 | --- | --- |
-| `[data-speech-voice]` | `<select>` populated with available voices |
-| `[data-speech-rate]` | Form control with a numeric `.value` (range, select, or number input) for speech speed |
-| `[data-speech-scroll]` | Optional checkbox; toggles the `scroll` attribute |
-| `[popover]` | Voice and speed options panel |
-| `[popover][role="toolbar"]` | Optional selection toolbar; shown when the user marks text in `target` |
-| `[data-speech-bar]` / `.speech-bar` | Optional toolbar container; `hidden` toggled by `--show-controls` / `--hide-controls` |
-| `[role="status"]` | Optional live region (ineffective when `aria-hidden="true"` is on `<wc-speech>`) |
-| `[data-speech-error]` | Optional persistent error message area (shown when speech cannot start or synthesis fails) |
-| `data-speech-state` | Host attribute set by the component: `ready`, `speaking`, `paused`, `unsupported`, or `error` |
-| `button[commandfor][command]` | Wired to `--show-controls`, `--hide-controls`, `--playpause`, `--speech-marked`, etc. |
-| `[data-speech-face="play"]` / `[data-speech-face="pause"]` | Optional faces inside `--playpause` or `--speech-marked` buttons; the component toggles visibility |
+| When to use (and when not to) | [#when-to-use](demo/index.html#when-to-use) |
+| Attributes, commands, events | [#documentation](demo/index.html#documentation) |
+| Common problems | [#troubleshooting](demo/index.html#troubleshooting) |
 
-See `demo/advanced/index.html` for a complete toolbar example.
+## When to use (summary)
 
-## Events
+Use `wc-speech` when you want an optional in-page listen button for **sighted visitors** who do not already use text-to-speech software — for example to offer a spoken version of written content alongside the text.
 
-The component dispatches these `CustomEvent`s (they bubble and are composed):
+Do **not** use it as your primary accessibility strategy. Screen reader users and people who rely on operating-system narration already have better tools; the component sets `aria-hidden="true"` on the speech tool so it stays out of their way.
 
-| Event | When | `detail` |
-| --- | --- | --- |
-| `speech-start` | Reading begins | `{ index, total }` |
-| `speech-stop` | Reading stopped manually (`Escape`, `--hide-controls`, `#stopSpeech`) | `{ index }` |
-| `speech-finish` | Last sentence completes | `{ index }` |
-| `speech-error` | Synthesis fails or speech cannot start | `{ index, code, message, error? }` |
-| `sentence-change` | Each sentence starts | `{ index, total, text }` |
+For the full comparison with assistive technology, OS read-aloud, and other TTS approaches, see [When to use](demo/index.html#when-to-use) in the demo documentation.
 
-```javascript
-document.querySelector('wc-speech').addEventListener('sentence-change', (event) => {
-  console.log(event.detail.index, event.detail.text);
-});
+## Development
+
+Regenerate the minified file after editing the source:
+
+```bash
+npm run build
 ```
 
-## Known limits
+Run the automated test suite:
 
-- **One instance per page (enforced)** — only the first connected `<wc-speech>` is active. Additional instances are disabled (`data-speech-blocked="duplicate"`) and log a console warning. When the active instance is removed, the next blocked instance is promoted automatically.
-- **Pause** — pausing cancels the current utterance; resuming re-speaks the current sentence from the start (workaround for unreliable `speechSynthesis.pause()` in some browsers).
-- **Long utterances** — a keep-alive heartbeat prevents Chrome from silently cutting off speech after ~15 seconds on a single utterance.
-- **Word highlighting** — depends on browser, voice, and the [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static). Falls back to sentence highlighting or, for media (`img`, `video`, `audio`), an element outline. Per-word highlights are suppressed when the user prefers reduced motion; sentence-level highlighting still runs.
+```bash
+npm test
+```
 
-## Browser support
-
-Requires [speechSynthesis](https://caniuse.com/speech-synthesis) and [SpeechSynthesisUtterance](https://caniuse.com/mdn-api_speechsynthesisutterance). Works best with system voices installed (see voice download links in the demo).
-
-Optional enhancements:
-
-- [Custom Highlight API](https://caniuse.com/mdn-api_css_highlights_static) — word and sentence highlights
-- [commandfor](https://caniuse.com/mdn-html_elements_button_commandfor) — declarative buttons (click fallback included)
-- [Popover API](https://caniuse.com/mdn-html_global_attributes_popover) — selection toolbar and voice options panel
-
-## Selection read-aloud
-
-Add a `[popover][role="toolbar"]` element inside `<wc-speech>` with a button wired to `command="--speech-marked"`. When the user marks text inside `target`, a popover appears above the selection. Only the marked text is read; the rest of the page is not spoken. While marked speech is active, the same button pauses or resumes (like `--playpause`); optional `data-speech-face` children can show play/pause labels. Selection uses the same DOM collection pipeline as full-page speech (abbreviation expansion, `lang` runs, `aria-hidden` skip, and per-sentence highlighting). `popover="auto"` provides light dismiss on click outside or <kbd>Escape</kbd>.
-
-## Attributes (summary)
-
-| Attribute | Description |
-| --- | --- |
-| `target` | CSS selector for content to read |
-| `prefer-voice` | Prefer voice names/URIs containing this text when auto-selecting in `[data-speech-voice]` |
-| `scroll` | Follow along while reading (honours `prefers-reduced-motion`) |
-| `code-lang` | Language for `pre` / `code` blocks (default `en`) |
-| `label-play`, `label-pause` | Accessible name for play/pause when faces are icon-only (default English) |
-| `status-speaking`, `status-paused`, `status-finished` | Status region text when `[role="status"]` is used |
-| `error-unsupported`, `error-missing-lang`, `error-missing-target`, `error-target-not-found`, `error-empty-content`, `error-synthesis-failed` | User-visible error messages (override for i18n) |
-| `hidden` | Pre-init cloak on `<wc-speech>` (removed on connect); on the speech bar, hides the toolbar until `--show-controls` |
-| `aria-hidden` | Set to `true` on connect; keeps assistive technology out of the speech tool |
-
-Full reference: see the **Documentation** section in `demo/advanced/index.html`.
-
-## Skipped content
-
-Not spoken: `wc-speech` subtrees, form controls (`select`, `input`, `textarea`, `button`), `script` / `style` / `noscript`, subtrees with `aria-hidden="true"` or the `hidden` attribute, and images with an empty `alt`. Images with `alt` text are spoken as the alt text. Abbreviations with a `title` attribute are spoken as the expanded form. `<time datetime="…">` speaks visible text and, when useful, a localized date from `datetime`. `pre` and `code` blocks are spoken as their text content in `code-lang` (default English).
+Tests run in CI on every push and pull request to `main` ([`.github/workflows/test.yml`](.github/workflows/test.yml)). Speech behaviour is covered with jsdom mocks; browser-specific quirks (voice quality, word boundaries, pause/resume) are verified manually in Chrome, Edge, Firefox, and Safari before releases.
 
 ## Feedback
 

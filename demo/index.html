@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>wc-speech demos</title>
-    <meta name="description" content="Choose a wc-speech demo: simple one-button integration or the full speech-bar example.">
-    <link rel="stylesheet" href="../demo.css">
+    <title>wc-speech demos and documentation</title>
+    <meta name="description" content="wc-speech demo hub: simple and advanced integration examples, plus full API documentation for the text-to-speech web component.">
+    <link rel="stylesheet" href="demo.css">
   </head>
   <body>
 
@@ -15,6 +15,18 @@
         Pick an integration example. Both use <code>wc-speech.js</code> and
         <code>speech.css</code> from the repository root. The advanced demo also loads
         <code>speech-advanced.css</code>.
+        Full API reference is on this page — see <a href="#documentation">Documentation</a>.
+      </p>
+
+      <p>
+        Maintained by <a href="https://github.com/Hintzmann">Martin Hintzmann</a>.
+        <a href="https://github.com/Hintzmann/wc-speech">Source</a> ·
+        <a href="https://github.com/Hintzmann/wc-speech/issues">Issues</a>.
+        Built on ideas from
+        <a href="https://dbushell.com/2025/07/26/text-to-speech-synthesis/">Dave Bushell's text-to-speech synthesis article</a>.
+        Behaviour is covered by automated tests (Node.js + jsdom, run in
+        <a href="https://github.com/Hintzmann/wc-speech/blob/main/.github/workflows/test.yml">CI</a>)
+        and checked manually in major browsers before releases.
       </p>
 
       <ul>
@@ -24,9 +36,422 @@
         </li>
         <li>
           <a href="advanced/"><strong>Advanced</strong></a> — full speech bar, voice options,
-          Danish example, markup behaviour lab, and inline documentation.
+          Danish example, and markup behaviour lab.
         </li>
       </ul>
+
+      <nav aria-label="On this page">
+        <h2 class="visually-hidden">On this page</h2>
+        <ul>
+          <li><a href="#when-to-use">When to use</a></li>
+          <li><a href="#documentation">Documentation</a>
+            <ul>
+              <li><a href="#who-this-is-for">Who this is for</a></li>
+              <li><a href="#why-it-exists">Why it exists</a></li>
+              <li><a href="#expected-markup">Expected markup</a></li>
+              <li><a href="#basic-setup">Basic setup</a></li>
+              <li><a href="#attributes">Attributes</a></li>
+              <li><a href="#commands">Commands</a></li>
+              <li><a href="#events">Events</a></li>
+              <li><a href="#known-limits">Known limits</a></li>
+            </ul>
+          </li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+          <li><a href="#references">References</a></li>
+        </ul>
+      </nav>
+
+      <section id="when-to-use">
+        <h2>When to use</h2>
+
+        <p>
+          <code>wc-speech</code> fits sites that want an optional in-page listen control for
+          <strong>sighted visitors</strong> who do not already use text-to-speech software.
+          It reads content you point <code>target</code> at, follows <code>lang</code> attributes,
+          and can highlight the current sentence and word when the browser supports it.
+        </p>
+
+        <h3>Good fit</h3>
+        <ul>
+          <li>Public information pages where a spoken version helps visitors who would not otherwise have one.</li>
+          <li>Articles, guides, or policy text where an explicit "Listen" or speech toolbar is welcome.</li>
+          <li>Projects that can self-host a few static files (<code>wc-speech.js</code>, <code>speech.css</code>) with no build step or npm dependency.</li>
+          <li>Pragmatic coverage of "written and oral format" expectations — see <a href="#why-it-exists">Why it exists</a>.</li>
+        </ul>
+
+        <h3>Not a good fit</h3>
+        <ul>
+          <li><strong>Primary accessibility compliance.</strong> Use semantic HTML, keyboard support, and assistive-technology testing instead. This component is intentionally hidden from screen readers (<code>aria-hidden="true"</code> on the host).</li>
+          <li><strong>Replacing screen readers or OS narration.</strong> People who rely on those tools already have more capable speech; they will not use a per-site toolbar.</li>
+          <li><strong>Guaranteed legal compliance.</strong> It may help with oral access to written content but is not a substitute for a full accessibility programme or professional audit.</li>
+          <li><strong>Offline or server-side TTS.</strong> Everything runs in the visitor's browser via <code>speechSynthesis</code>; quality and voices depend on their device.</li>
+        </ul>
+
+        <h3>Compared with other options</h3>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Approach</th>
+              <th scope="col">When it wins</th>
+              <th scope="col">When <code>wc-speech</code> wins</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Screen reader / OS read-aloud</td>
+              <td>User needs site-wide, reliable narration; accessibility is the goal.</td>
+              <td>You want an optional on-page button for sighted users without TTS installed.</td>
+            </tr>
+            <tr>
+              <td>Browser "Read aloud" / Immersive Reader</td>
+              <td>User already uses a built-in tool; no site integration needed.</td>
+              <td>You want speech tied to your page layout, highlights, and sentence navigation.</td>
+            </tr>
+            <tr>
+              <td>Cloud TTS API (Google, Amazon, etc.)</td>
+              <td>Consistent voice quality, offline playback, or languages the browser lacks.</td>
+              <td>Zero cost, no API keys, no audio files — browser voices only.</td>
+            </tr>
+            <tr>
+              <td>Roll your own <code>speechSynthesis</code> wrapper</td>
+              <td>Minimal needs, full control, no DOM walking.</td>
+              <td>You want sentence splitting, <code>lang</code> runs, <code>abbr</code> expansion, highlights, and browser workarounds out of the box.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Production checklist</h3>
+        <ul>
+          <li>Set <code>lang</code> on <code>&lt;html&gt;</code> and on mixed-language sections.</li>
+          <li>Provide a fallback when <code>data-speech-state="unsupported"</code> — hide or disable the speech control.</li>
+          <li>Keep readable content in <code>target</code>; put forms and the speech toolbar outside it when you can.</li>
+          <li>Override <code>error-*</code> and <code>label-*</code> attributes if your site is not in English.</li>
+          <li>Test with system voices on your target platforms (see <a href="#troubleshooting">Troubleshooting</a>).</li>
+        </ul>
+      </section>
+
+      <section id="documentation">
+        <h2>Documentation</h2>
+
+        <p>
+          <code>wc-speech</code> is a small text-to-speech web component built on the
+          Web Speech API. It reads text from another part of the page, follows the
+          document's <code>lang</code> attributes, and highlights the current sentence
+          and word when the browser supports custom highlights.
+        </p>
+
+        <h3 id="known-limits">Known limits</h3>
+        <p>
+          See also the
+          <a href="https://github.com/Hintzmann/wc-speech/blob/main/README.md"><code>README</code></a>
+          in the repository.
+        </p>
+        <ul>
+          <li><strong>One active instance per page (enforced)</strong> — only the first connected <code>&lt;wc-speech&gt;</code> runs. Additional instances are disabled (<code>data-speech-blocked="duplicate"</code>) until the active one is removed.</li>
+          <li>Point <code>target</code> at readable content. <code>wc-speech</code> subtrees are skipped automatically; keep other controls outside the target when you can.</li>
+          <li>When speech synthesis is unsupported, controls are disabled and a message is shown in <code>[data-speech-error]</code> when present.</li>
+          <li><strong>Pause</strong> cancels the current sentence; resume starts that sentence again from the beginning.</li>
+          <li>Word highlighting depends on browser, voice, and the Custom Highlight API.</li>
+          <li>Automated tests run in CI — run <code>npm test</code> locally before changing speech behaviour.</li>
+        </ul>
+
+        <h3 id="who-this-is-for">Who this is for</h3>
+        <p>
+          <code>wc-speech</code> is a simple in-page <strong>speech tool</strong> for <strong>sighted users who
+          do not have text-to-speech software installed</strong>. It is not a replacement
+          for assistive technology. People who rely on screen readers or built-in
+          operating-system narration already have their own, more capable speech tools and
+          will use those — this component is intentionally simple and stays out of their way.
+        </p>
+
+        <h3 id="why-it-exists">Why it exists (Directive (EU) 2019/882)</h3>
+        <p>
+          The European Accessibility Act (Directive (EU) 2019/882) <a href="https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng#:~:text=The%20information%20shall%20be%20made%20available%20to%20the%20public%20in%20written%20and%20oral%20format">Article 13.2</a> encourages key
+          information to be available through more than one sensory channel — for instance,
+          text that can also be rendered orally. <code>wc-speech</code> provides an in-page
+          spoken version of written content to help cover that "written and oral format"
+          expectation for visitors who would not otherwise have a speech option.
+        </p>
+        <p>
+          <small>
+            That said, native browser and operating-system text-to-speech features — and
+            dedicated assistive technology — generally do this more reliably than a
+            per-site speech tool. Treat <code>wc-speech</code> as a pragmatic fill for a specific
+            gap, not as a substitute for real assistive technology or a guarantee of legal
+            compliance.
+          </small>
+        </p>
+
+        <h3 id="expected-markup">Expected markup</h3>
+        <p>
+          Inside <code>&lt;wc-speech&gt;</code>, wire voice, speed, and scroll with
+          <code>data-speech-*</code> hooks on a <code>select</code>, form control, and
+          checkbox. Add a <code>[popover]</code> options panel inside a speech bar
+          (<code>.speech-bar</code> or <code>[data-speech-bar]</code>), command buttons with
+          <code>commandfor</code> and <code>command</code>, and optionally
+          <code>[data-speech-error]</code>. Play/pause buttons may sit inside or outside
+          <code>&lt;wc-speech&gt;</code>; adjustment controls should stay inside.
+          See the <a href="advanced/">advanced demo</a> toolbar, or the <a href="simple/">simple demo</a> for a one-button setup.
+        </p>
+
+        <h3 id="basic-setup">Basic setup</h3>
+        <p>
+          Add the component, point <code>target</code> at the content that should be
+          read, and wire buttons to the component with <code>commandfor</code> and
+          <code>command</code>.
+        </p>
+
+        <pre class="code" tabindex="0"><code>&lt;button type="button" commandfor="speech" command="--show-controls"&gt;
+  Show speech tool
+&lt;/button&gt;
+
+&lt;wc-speech
+  id="speech" target="#article" prefer-voice="Microsoft" hidden aria-hidden="true"&gt;
+
+  &lt;section class="speech-bar" hidden&gt;
+    &lt;button type="button" commandfor="speech" command="--playpause"&gt;
+      &lt;span data-speech-face="play"&gt;Play&lt;/span&gt;
+      &lt;span data-speech-face="pause" hidden&gt;Pause&lt;/span&gt;
+    &lt;/button&gt;
+
+    &lt;button type="button" commandfor="speech"
+      command="--previous-sentence"&gt;Previous&lt;/button&gt;
+
+    &lt;button type="button" commandfor="speech"
+      command="--next-sentence"&gt;Next&lt;/button&gt;
+
+    &lt;select data-speech-voice&gt;&lt;/select&gt;
+
+    &lt;input data-speech-rate type="range" min="0" max="3.5" step="0.5" value="1"&gt;
+  &lt;/section&gt;
+&lt;/wc-speech&gt;
+
+&lt;article id="article" lang="en"&gt;
+  &lt;h1&gt;Readable content&lt;/h1&gt;
+  &lt;p&gt;This text can be spoken.&lt;/p&gt;
+&lt;/article&gt;</code></pre>
+
+        <h3 id="attributes">Attributes</h3>
+        <dl>
+          <dt><code>target</code></dt>
+          <dd>CSS selector for the content that should be read. Put controls outside the target when you can. <code>wc-speech</code> elements inside the target are skipped automatically.</dd>
+
+          <dt><code>data-speech-voice</code></dt>
+          <dd>On a <code>&lt;select&gt;</code> inside <code>&lt;wc-speech&gt;</code>. Populated with available voices. Use <code>prefer-voice</code> on the component to auto-select a matching voice.</dd>
+
+          <dt><code>data-speech-rate</code></dt>
+          <dd>On a form control inside <code>&lt;wc-speech&gt;</code> whose <code>value</code> is a number — for example <code>input type="range"</code>, <code>input type="number"</code>, or <code>select</code> with numeric option values. Read when each sentence is spoken; values are clamped between <code>0.1</code> and <code>10</code>.</dd>
+
+          <dt><code>data-speech-scroll</code></dt>
+          <dd>On <code>&lt;input type="checkbox"&gt;</code> inside <code>&lt;wc-speech&gt;</code>. Toggles the component <code>scroll</code> attribute when checked.</dd>
+
+          <dt><code>prefer-voice</code></dt>
+          <dd>Optional text used to prefer matching voice names or voice URIs when the component auto-selects a voice, for example <code>Microsoft</code> for system voices on Windows. Users can still choose another voice manually.</dd>
+
+          <dt><code>scroll</code></dt>
+          <dd>Optional boolean. When present, the page follows along by scrolling the current sentence into view while reading. Honors <code>prefers-reduced-motion</code> (smooth scrolling is disabled when the user prefers reduced motion). This attribute is the default for the "Scroll to follow while reading" checkbox in the voice options, and users can toggle it there at runtime.</dd>
+
+          <dt><code>code-lang</code></dt>
+          <dd>Optional language used when reading <code>pre</code> and <code>code</code> blocks, since source code is normally English. Defaults to <code>en</code> and ignores the surrounding document language. An explicit <code>lang</code> attribute on the code element still wins.</dd>
+
+          <dt><code>label-play</code> / <code>label-pause</code></dt>
+          <dd>Optional accessible name for the play/pause button (used as <code>aria-label</code> and <code>title</code> unless the button has <code>data-speech-manual-a11y</code>). Defaults to <code>Play</code> and <code>Pause</code>. Visible icon and text live in your markup — see <code>data-speech-face</code> below.</dd>
+
+          <dt><code>data-speech-face="play"</code> / <code>data-speech-face="pause"</code></dt>
+          <dd>On child elements of a <code>command="--playpause"</code> or <code>command="--speech-marked"</code> button. The component toggles which face is shown and sets <code>data-speech-action</code> on the button. You supply icons, emoji, or text; wc-speech does not hardcode them. Icon-only buttons can use <code>aria-hidden="true"</code> on faces and rely on <code>label-play</code> / <code>label-pause</code> for the accessible name.</dd>
+
+          <dt><code>status-speaking</code> / <code>status-paused</code> / <code>status-finished</code></dt>
+          <dd>Optional text for a <code>[role="status"]</code> hook when present. Defaults to <code>Speaking</code>, <code>Paused</code>, and <code>Finished</code>. Has no effect on assistive technology when <code>aria-hidden="true"</code> is on <code>&lt;wc-speech&gt;</code> (the default after connect).</dd>
+
+          <dt><code>error-unsupported</code> / <code>error-missing-lang</code> / <code>error-missing-target</code> / <code>error-target-not-found</code> / <code>error-empty-content</code> / <code>error-synthesis-failed</code></dt>
+          <dd>Optional user-visible error text for common failure cases. Override these attributes for translation. Errors are logged to the console, dispatched as <code>speech-error</code>, and shown in <code>[data-speech-error]</code> when present.</dd>
+
+          <dt><code>data-speech-state</code></dt>
+          <dd>Set on the host element: <code>ready</code>, <code>speaking</code>, <code>paused</code>, <code>unsupported</code>, or <code>error</code>. Use for styling, for example <code>wc-speech[data-speech-state="error"]</code>.</dd>
+
+          <dt><code>hidden</code></dt>
+          <dd>On <code>&lt;wc-speech&gt;</code>, a pre-init cloak removed when the component connects. On the speech bar (<code>.speech-bar</code> or <code>[data-speech-bar]</code>), hides the toolbar until <code>--show-controls</code>.</dd>
+
+          <dt><code>aria-hidden</code></dt>
+          <dd>Set to <code>true</code> when the component connects so screen readers and other assistive technology stay out of the speech tool. Sighted users interact with visible controls; the tool is not a replacement for assistive technology.</dd>
+
+          <dt><code>[popover][role="toolbar"]</code></dt>
+          <dd>Optional selection toolbar inside <code>&lt;wc-speech&gt;</code>. Shown above text the user selects in the <code>target</code> content. Wire a button to <code>command="--speech-marked"</code> to read only the marked text using the same DOM collection, language, and abbreviation rules as full-page speech. Use <code>popover="auto"</code> for light dismiss on click outside or <kbd>Escape</kbd>. Distinct from the voice options <code>[popover]</code> panel.</dd>
+        </dl>
+
+        <h3 id="commands">Commands</h3>
+        <dl>
+          <dt><code>--show-controls</code> / <code>--hide-controls</code></dt>
+          <dd>Show or hide the control bar. Hiding also stops speech and clears highlights.</dd>
+
+          <dt><code>--playpause</code></dt>
+          <dd>Start speech, pause the current sentence, or continue from the start of the current sentence. Pause uses <code>cancel()</code> rather than <code>pause()</code> for better cross-browser behaviour.</dd>
+
+          <dt><code>--previous-sentence</code> / <code>--next-sentence</code></dt>
+          <dd>Move backward or forward while speech is active.</dd>
+
+          <dt><code>--toggle-options</code></dt>
+          <dd>Show or hide the voice and speed options popover.</dd>
+
+          <dt><code>--speech-marked</code></dt>
+          <dd>Read only the text currently selected in the <code>target</code> content. Used from the selection toolbar (<code>[popover][role="toolbar"]</code>). While marked speech is active, repeated clicks pause or resume the current sentence (same behaviour as <code>--playpause</code>). If full-page speech is active, switches to the marked selection instead.</dd>
+        </dl>
+
+        <h3>Keyboard</h3>
+        <dl>
+          <dt><kbd>Escape</kbd></dt>
+          <dd>Closes the selection toolbar or voice options popover when open. While speech is active, stops reading and clears highlights (same as hiding the control bar) once overlays are closed.</dd>
+        </dl>
+
+        <h3 id="events">Events</h3>
+        <p>
+          The component dispatches bubbling, composed <code>CustomEvent</code>s you can listen for:
+          <code>speech-start</code>, <code>speech-stop</code>, <code>speech-finish</code>,
+          <code>speech-error</code>, and <code>sentence-change</code>. The
+          <code>speech-error</code> event includes <code>detail.code</code>,
+          <code>detail.message</code>, and <code>detail.index</code>.
+        </p>
+
+        <h3>Language</h3>
+        <p>
+          Add a <code>lang</code> attribute to the page and to any content that changes
+          language. The component resolves language from the element being spoken and
+          its ancestors, so mixed-language content like <code>&lt;span lang="fr"&gt;</code>
+          can use another voice when available.
+        </p>
+
+        <h3>Highlight colors</h3>
+        <p>
+          Override these CSS custom properties to change the word and sentence
+          highlights:
+        </p>
+
+        <pre><code>:root {
+  --speech-word-bg: Mark;
+  --speech-word-text: MarkText;
+  --speech-sentence-bg: SelectedItem;
+  --speech-sentence-text: SelectedItemText;
+}</code></pre>
+
+        <p>
+          Without the Custom Highlight API, <code>img</code>, <code>video</code>, and
+          <code>audio</code> use an element outline while they are spoken.
+          <code>abbr</code>, <code>time</code>, <code>code</code>, and <code>pre</code>
+          use the sentence background on the element instead, like other inline text.
+        </p>
+
+        <h3>Worth knowing</h3>
+        <ul>
+          <li>Only one <code>&lt;wc-speech&gt;</code> per page is active. Additional instances are disabled with <code>data-speech-blocked="duplicate"</code>. When the active instance is removed, the next blocked instance is promoted.</li>
+          <li>The component needs browser support for <a href="https://caniuse.com/speech-synthesis"><code>speechSynthesis</code></a> and <a href="https://caniuse.com/mdn-api_speechsynthesisutterance"><code>SpeechSynthesisUtterance</code></a>.</li>
+          <li>Word and sentence highlighting is progressive enhancement. Speech still works without the <a href="https://caniuse.com/mdn-api_css_highlights_static">Custom Highlight API</a>.</li>
+          <li>Word highlighting also depends on the selected voice. Some Chrome Google voices do not emit reliable word boundaries, so the component may fall back to sentence highlighting only. Use <code>prefer-voice</code> to prefer voices that behave better for your target browsers.</li>
+          <li>Native <a href="https://caniuse.com/mdn-html_elements_button_commandfor"><code>commandfor</code></a> support is still new, so the component includes a click fallback for its own commands.</li>
+          <li>Image <code>alt</code> text is spoken as-is; empty <code>alt</code> is skipped. <code>abbr title</code> is read as the expanded form. <code>time datetime</code> can add a spoken date. <code>pre</code> and <code>code</code> are read in <code>code-lang</code>. <code>wc-speech</code>, form controls, <code>script</code>, <code>style</code>, and elements with <code>aria-hidden="true"</code> or <code>hidden</code> are skipped.</li>
+        </ul>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+
+        <p>
+          Common symptoms mapped to causes and fixes. Check
+          <code>data-speech-state</code> on <code>&lt;wc-speech&gt;</code>, the browser console,
+          and <code>[data-speech-error]</code> when present. Listen for
+          <code>speech-error</code> events — <code>detail.code</code> matches the error attribute names below.
+        </p>
+
+        <h3>No voices in the dropdown</h3>
+        <p>
+          <strong>Symptom:</strong> <code>[data-speech-voice]</code> is empty or only shows a few voices.<br>
+          <strong>Cause:</strong> The browser exposes only voices installed on the visitor's device.<br>
+          <strong>Fix:</strong> Install system voices — see
+          <a href="https://support.microsoft.com/da-dk/education/download-languages-and-voices-for-immersive-reader-read-mode-and-read-aloud">Windows</a>
+          or
+          <a href="https://support.apple.com/da-dk/guide/mac-help/mh27448/mac">Mac</a>.
+          Use <code>prefer-voice="Microsoft"</code> (or similar) to auto-select a system voice when available.
+        </p>
+
+        <h3>Speech control disabled / "not supported"</h3>
+        <p>
+          <strong>Symptom:</strong> Buttons stay disabled; <code>data-speech-state="unsupported"</code>.<br>
+          <strong>Cause:</strong> <code>error-unsupported</code> — no
+          <a href="https://caniuse.com/speech-synthesis"><code>speechSynthesis</code></a> in this browser.<br>
+          <strong>Fix:</strong> Hide the speech tool or show a static message. Speech cannot run without browser support.
+        </p>
+
+        <h3>Nothing is spoken</h3>
+        <p>
+          <strong>Symptom:</strong> Play starts but no audio, or speech stops immediately.<br>
+          <strong>Possible causes:</strong>
+        </p>
+        <ul>
+          <li><code>error-missing-lang</code> — add <code>lang</code> to <code>&lt;html&gt;</code>.</li>
+          <li><code>error-missing-target</code> or <code>error-target-not-found</code> — check the <code>target</code> selector matches an element on the page.</li>
+          <li><code>error-empty-content</code> — readable text is missing inside <code>target</code> (controls and <code>aria-hidden</code> subtrees are skipped).</li>
+          <li>Content loaded after connect — the component collects sentences when speech starts; ensure the DOM is ready before the user presses play.</li>
+        </ul>
+
+        <h3>Wrong language or voice</h3>
+        <p>
+          <strong>Symptom:</strong> English text read with the wrong accent, or mixed-language content sounds off.<br>
+          <strong>Cause:</strong> Missing or incorrect <code>lang</code> attributes; no matching voice for that language.<br>
+          <strong>Fix:</strong> Set <code>lang</code> on <code>&lt;html&gt;</code> and on inline changes (for example <code>&lt;span lang="da"&gt;</code>).
+          Install voices for those languages. The component picks a voice per language run when one is available.
+        </p>
+
+        <h3>Word highlights missing</h3>
+        <p>
+          <strong>Symptom:</strong> Sentences highlight but individual words do not.<br>
+          <strong>Cause:</strong> Word boundaries depend on browser, voice, and the
+          <a href="https://caniuse.com/mdn-api_css_highlights_static">Custom Highlight API</a>.
+          Some Chrome Google voices never emit reliable word events.<br>
+          <strong>Fix:</strong> Try a system voice via <code>prefer-voice</code>. Sentence-level highlighting still works; speech is unaffected.
+        </p>
+
+        <h3>Pause restarts the current sentence</h3>
+        <p>
+          <strong>Symptom:</strong> After pause, the same sentence plays from the beginning.<br>
+          <strong>Cause:</strong> Expected behaviour — pause uses <code>cancel()</code> because
+          <code>speechSynthesis.pause()</code> is unreliable in several browsers.<br>
+          <strong>Fix:</strong> No fix needed; document this for your users if you provide a help page.
+        </p>
+
+        <h3>Speech cuts off mid-sentence (Chrome)</h3>
+        <p>
+          <strong>Symptom:</strong> Long sentences stop partway through.<br>
+          <strong>Cause:</strong> Chrome can silently stop a single utterance after ~15 seconds.<br>
+          <strong>Fix:</strong> The component uses a keep-alive heartbeat and splits content into sentences.
+          If you still hear cut-offs, check for very long unbroken text without sentence punctuation.
+        </p>
+
+        <h3>Second <code>wc-speech</code> does nothing</h3>
+        <p>
+          <strong>Symptom:</strong> Another instance on the page is inert; console warns about duplicates.<br>
+          <strong>Cause:</strong> Only one active instance per page (<code>data-speech-blocked="duplicate"</code>).<br>
+          <strong>Fix:</strong> Use a single <code>&lt;wc-speech&gt;</code> per page, or remove the active one so the next is promoted.
+        </p>
+
+        <h3><code>error-synthesis-failed</code> during playback</h3>
+        <p>
+          <strong>Symptom:</strong> Reading stops; error message or <code>speech-error</code> event.<br>
+          <strong>Cause:</strong> The selected voice or browser failed to synthesize an utterance.<br>
+          <strong>Fix:</strong> Ask the user to pick another voice in <code>[data-speech-voice]</code>.
+          Retry in another browser if the problem persists.
+        </p>
+      </section>
+
+
+      <section id="references">
+        <h2>References</h2>
+        <ul>
+          <li><a href="https://dbushell.com/2025/07/26/text-to-speech-synthesis/">Text to speech synthesis</a></li>
+          <li><a href="https://support.microsoft.com/da-dk/education/download-languages-and-voices-for-immersive-reader-read-mode-and-read-aloud">Download sprog og stemmer til Forenklet læser, læsetilstand og højtlæsning</a></li>
+          <li><a href="https://support.apple.com/da-dk/guide/mac-help/mh27448/mac">Få din Mac til at læse tekst på skærmen op</a></li>
+          <li><a href="https://eur-lex.europa.eu/eli/dir/2019/882/oj/eng#:~:text=The%20information%20shall%20be%20made%20available%20to%20the%20public%20in%20written%20and%20oral%20format">Directive (EU) 2019/882</a></li>
+        </ul>
+      </section>
+
     </main>
 
   </body>
