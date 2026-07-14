@@ -18,6 +18,9 @@
           <span data-speech-face="play">🗣️ Læs op</span>
           <span data-speech-face="pause" hidden>⏸️ Stop oplæsning</span>
         </button>
+        <div popover="auto" role="toolbar" aria-label="Læs højt funktion" hidden>
+          <button type="button" commandfor="speech" command="--speech-marked">Læs højt</button>
+        </div>
         <p data-speech-error role="alert" hidden></p>
       </wc-speech>
 
@@ -35,6 +38,7 @@
         </p>
         <p>
           Press <strong><span aria-hidden="true">🗣️</span> Læs op</strong> to hear this article. Use the same button to pause, or press <kbd>Escape</kbd> to stop.
+          Mark text in the article to open a <strong>Læs højt</strong> popover and hear only the selection.
         </p>
       </article>
     </main>

@@ -32,6 +32,47 @@ function pressEscape() {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 }
 
+function mouseup() {
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+}
+
+function flushDeferredSelection() {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+function selectTextIn(element, start, end) {
+  const textNode = element.firstChild;
+  assert.ok(textNode);
+
+  const range = document.createRange();
+  range.setStart(textNode, start);
+  range.setEnd(textNode, end);
+
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return selection;
+}
+
+const SELECTION_MARKUP = `
+  <button type="button" id="play" commandfor="speech" command="--playpause">Play</button>
+  <button type="button" id="marked" commandfor="speech" command="--speech-marked">Read selection</button>
+  <wc-speech id="speech" target="#article">
+    <div id="selection-toolbar" popover="auto" role="toolbar" hidden>
+      <button type="button" commandfor="speech" command="--speech-marked">Read selection</button>
+    </div>
+    <div id="options" popover hidden></div>
+  </wc-speech>
+  <article id="article"><p>Hello world.</p><p>Second paragraph with more text.</p></article>
+  <p id="outside">Outside content.</p>
+`;
+
+function clickMarked() {
+  document.getElementById('marked').click();
+}
+
 function speechElement() {
   return document.getElementById('speech');
 }
@@ -262,7 +303,7 @@ describe('wc-speech integration', () => {
       speech.addEventListener('speech-stop', (event) => stopped.push(event.detail));
 
       clickPlay();
-      speech.querySelector('#options').hidden = false;
+      speech.querySelector('#options').showPopover();
 
       pressEscape();
 
@@ -400,6 +441,96 @@ describe('wc-speech integration', () => {
       assert.equal(sentences[0].text, 'Inline and block code:');
       assert.equal(sentences[1].text, "console.log('Hello');");
       assert.equal(speechMocks().utterances[1]?.lang, 'en');
+    });
+  });
+
+  describe('selection read-aloud', () => {
+    beforeEach(() => {
+      resetSpeechInstance();
+      installSpeechMocks();
+      document.documentElement.setAttribute('lang', 'en');
+      setupDom(SELECTION_MARKUP);
+    });
+
+    it('shows the selection toolbar when text is marked in the target', async () => {
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      const toolbar = speechElement().querySelector('#selection-toolbar');
+      assert.equal(toolbar._popoverOpen, true);
+      assert.match(toolbar.style.left, /^\d+(\.\d+)?px$/);
+      assert.match(toolbar.style.top, /^\d+(\.\d+)?px$/);
+    });
+
+    it('does not show the selection toolbar for text outside the target', async () => {
+      const outside = document.getElementById('outside');
+      selectTextIn(outside, 0, 7);
+      mouseup();
+      await flushDeferredSelection();
+
+      const toolbar = speechElement().querySelector('#selection-toolbar');
+      assert.notEqual(toolbar._popoverOpen, true);
+    });
+
+    it('does not show the selection toolbar for a collapsed selection', async () => {
+      const paragraph = document.querySelector('#article p');
+      const textNode = paragraph.firstChild;
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.collapse(true);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+
+      mouseup();
+      await flushDeferredSelection();
+
+      const toolbar = speechElement().querySelector('#selection-toolbar');
+      assert.notEqual(toolbar._popoverOpen, true);
+    });
+
+    it('reads only the marked text with --speech-marked', async () => {
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      clickMarked();
+
+      const utterance = speechMocks().utterances.at(-1);
+      assert.equal(utterance.text, 'Hello');
+    });
+
+    it('closes the selection toolbar on Escape without stopping speech', async () => {
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      clickPlay();
+
+      const speech = speechElement();
+      const stopped = [];
+      speech.addEventListener('speech-stop', (event) => stopped.push(event.detail));
+
+      pressEscape();
+
+      const toolbar = speech.querySelector('#selection-toolbar');
+      assert.notEqual(toolbar._popoverOpen, true);
+      assert.equal(stopped.length, 0);
+      assert.equal(speech.classList.contains('speaking'), true);
+
+      pressEscape();
+
+      assert.equal(stopped.length, 1);
+      assert.equal(speech.classList.contains('speaking'), false);
+    });
+
+    it('keeps resolving the options popover when a selection toolbar is present', () => {
+      const speech = speechElement();
+      const options = speech.querySelector('#options');
+      assert.equal(options, speech.querySelector('[popover]:not([role="toolbar"])'));
     });
   });
 

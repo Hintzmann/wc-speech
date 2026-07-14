@@ -113,17 +113,84 @@ export function speechMocks() {
   return activeSpeechMocks;
 }
 
+function installPopoverMocks() {
+  const { HTMLElement, Element } = globalThis;
+
+  if (!('popover' in HTMLElement.prototype)) {
+    Object.defineProperty(HTMLElement.prototype, 'popover', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return this.getAttribute('popover');
+      },
+      set(value) {
+        if (value === null) {
+          this.removeAttribute('popover');
+        } else {
+          this.setAttribute('popover', String(value));
+        }
+      },
+    });
+  }
+
+  if (!HTMLElement.prototype.showPopover) {
+    HTMLElement.prototype.showPopover = function showPopover() {
+      this._popoverOpen = true;
+      this.hidden = false;
+      const event = new Event('toggle', { bubbles: true });
+      event.newState = 'open';
+      event.oldState = 'closed';
+      this.dispatchEvent(event);
+    };
+  }
+
+  if (!HTMLElement.prototype.hidePopover) {
+    HTMLElement.prototype.hidePopover = function hidePopover() {
+      this._popoverOpen = false;
+      this.hidden = true;
+      const event = new Event('toggle', { bubbles: true });
+      event.newState = 'closed';
+      event.oldState = 'open';
+      this.dispatchEvent(event);
+    };
+  }
+
+  const originalMatches = Element.prototype.matches;
+  Element.prototype.matches = function matches(selectors) {
+    if (selectors === ':popover-open') {
+      return Boolean(this._popoverOpen);
+    }
+
+    return originalMatches.call(this, selectors);
+  };
+
+  if (!Range.prototype.getBoundingClientRect) {
+    Range.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      return {
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0,
+        right: 0,
+        bottom: 0,
+      };
+    };
+  }
+}
+
 function assignGlobals(window) {
   globalThis.window = window;
   globalThis.document = window.document;
   globalThis.customElements = window.customElements;
   globalThis.HTMLElement = window.HTMLElement;
   globalThis.HTMLButtonElement = window.HTMLButtonElement;
+  globalThis.Element = window.Element;
   globalThis.Node = window.Node;
   globalThis.Range = window.Range;
   globalThis.CustomEvent = window.CustomEvent;
   globalThis.Event = window.Event;
   globalThis.KeyboardEvent = window.KeyboardEvent;
+  globalThis.MouseEvent = window.MouseEvent;
   globalThis.requestAnimationFrame = (callback) => {
     callback();
     return 0;
@@ -143,6 +210,7 @@ export function setupDom(bodyHtml) {
       url: 'https://example.test/',
     });
     assignGlobals(dom.window);
+    installPopoverMocks();
   }
 
   document.body.innerHTML = bodyHtml;

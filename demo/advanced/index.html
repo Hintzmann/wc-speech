@@ -262,6 +262,9 @@
 
           <dt><code>aria-hidden</code></dt>
           <dd>Set to <code>true</code> when the component connects so screen readers and other assistive technology stay out of the speech tool. Sighted users interact with visible controls; the tool is not a replacement for assistive technology.</dd>
+
+          <dt><code>[popover][role="toolbar"]</code></dt>
+          <dd>Optional selection toolbar inside <code>&lt;wc-speech&gt;</code>. Shown above text the user selects in the <code>target</code> content. Wire a button to <code>command="--speech-marked"</code> to read only the marked text. Use <code>popover="auto"</code> for light dismiss on click outside or <kbd>Escape</kbd>. Distinct from the voice options <code>[popover]</code> panel.</dd>
         </dl>
 
         <h3>Commands</h3>
@@ -277,12 +280,15 @@
 
           <dt><code>--toggle-options</code></dt>
           <dd>Show or hide the voice and speed options popover.</dd>
+
+          <dt><code>--speech-marked</code></dt>
+          <dd>Read only the text currently selected in the <code>target</code> content. Used from the selection toolbar (<code>[popover][role="toolbar"]</code>).</dd>
         </dl>
 
         <h3>Keyboard</h3>
         <dl>
           <dt><kbd>Escape</kbd></dt>
-          <dd>While speech is active, stops reading and clears highlights (same as hiding the control bar). If the voice options popover is open, the first <kbd>Escape</kbd> closes it without stopping speech.</dd>
+          <dd>Closes the selection toolbar or voice options popover when open. While speech is active, stops reading and clears highlights (same as hiding the control bar) once overlays are closed.</dd>
         </dl>
 
         <h3>Events</h3>
@@ -406,6 +412,10 @@
           </p>
         </div>
       </section>
+
+      <div popover="auto" role="toolbar" aria-label="Read selection aloud" hidden>
+        <button type="button" commandfor="speech" command="--speech-marked">Read aloud</button>
+      </div>
     </wc-speech>
 
     <script type="module" src="../../wc-speech.js"></script>
