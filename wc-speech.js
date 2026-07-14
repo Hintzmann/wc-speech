@@ -70,6 +70,7 @@ class WcSpeech extends HTMLElement {
   #supportsSpeech = false;
   #registered = false;
   #paused = false;
+  #speechSource = null;
   #speakId = 0;
   #keepAliveTimer = null;
   #scrollRaf = 0;
@@ -438,11 +439,15 @@ class WcSpeech extends HTMLElement {
   }
 
   #buttonForCommand(command) {
+    return this.#buttonsForCommand(command)[0] ?? null;
+  }
+
+  #buttonsForCommand(command) {
     if (!this.id) {
-      return null;
+      return [];
     }
 
-    return document.querySelector(
+    return document.querySelectorAll(
       `button[commandfor="${CSS.escape(this.id)}"][command="${CSS.escape(command)}"]`,
     );
   }
@@ -450,20 +455,24 @@ class WcSpeech extends HTMLElement {
   #updateControlState() {
     const isActive = this.#supportsSpeech && this.classList.contains('speaking');
     const isPaused = this.#supportsSpeech && this.#paused;
-    const playPause = this.#buttonForCommand('--playpause');
     const previous = this.#buttonForCommand('--previous-sentence');
     const next = this.#buttonForCommand('--next-sentence');
+    const action = !isActive || isPaused ? 'play' : 'pause';
 
     this.#voiceSelect?.toggleAttribute('disabled', !this.#supportsSpeech);
     this.#rateControl?.toggleAttribute('disabled', !this.#supportsSpeech);
     this.#scrollCheckbox?.toggleAttribute('disabled', !this.#supportsSpeech);
-    playPause?.toggleAttribute('disabled', !this.#supportsSpeech);
     previous?.toggleAttribute('disabled', !isActive || this.#nodeIndex <= 0);
     next?.toggleAttribute('disabled', !isActive || this.#nodeIndex >= this.#nodeList.length - 1);
 
-    if (playPause) {
-      const action = !isActive || isPaused ? 'play' : 'pause';
-      this.#syncPlayPauseButton(playPause, action);
+    for (const button of this.#buttonsForCommand('--playpause')) {
+      button.toggleAttribute('disabled', !this.#supportsSpeech);
+      this.#syncPlayPauseButton(button, action);
+    }
+
+    for (const button of this.#buttonsForCommand('--speech-marked')) {
+      button.toggleAttribute('disabled', !this.#supportsSpeech);
+      this.#syncPlayPauseButton(button, action);
     }
   }
 
@@ -928,6 +937,7 @@ class WcSpeech extends HTMLElement {
     this.#clearHighlight();
     this.classList.remove('speaking');
     this.#paused = false;
+    this.#speechSource = null;
     this.#announce('');
     this.#setSpeechState('ready');
     this.#updateControlState();
@@ -2080,11 +2090,22 @@ class WcSpeech extends HTMLElement {
   }
 
   #speakMarked() {
+    if (this.classList.contains('speaking') && this.#speechSource === 'marked') {
+      this.#closeSelectionToolbar();
+      if (this.#paused) {
+        this.#resumeSpeech();
+      } else {
+        this.#pauseSpeech();
+      }
+      return;
+    }
+
     const markedRange = this.#resolveMarkedRange();
     if (!markedRange) {
       return;
     }
 
+    window.getSelection()?.removeAllRanges();
     this.#closeSelectionToolbar();
 
     const targetSelector = this.getAttribute('target')?.trim();
@@ -2115,8 +2136,7 @@ class WcSpeech extends HTMLElement {
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
-      this.#setSpeechState('ready');
-      this.#updateControlState();
+      this.#speechSource = null;
     }
 
     const targetInheritedLang = this.#inheritedLangFrom(this.#target.parentElement) || documentLang;
@@ -2134,6 +2154,8 @@ class WcSpeech extends HTMLElement {
     this.#defaultVoice = voiceIndex >= 0 ? this.#voices[voiceIndex] : null;
     this.#defaultLang = targetInheritedLang;
 
+    this.#nodeIndex = 0;
+    this.#speechSource = 'marked';
     this.classList.add('speaking');
     this.#announce(this.#text('status-speaking'));
     this.#setSpeechState('speaking');
@@ -2148,6 +2170,25 @@ class WcSpeech extends HTMLElement {
     this.#speakEntry(speakId);
   }
 
+  #pauseSpeech() {
+    this.#paused = true;
+    this.#speakId += 1;
+    this.#clearKeepAlive();
+    speechSynthesis.cancel();
+    this.#announce(this.#text('status-paused'));
+    this.#setSpeechState('paused');
+    this.#updateControlState();
+  }
+
+  #resumeSpeech() {
+    this.#paused = false;
+    const speakId = ++this.#speakId;
+    this.#announce(this.#text('status-speaking'));
+    this.#setSpeechState('speaking');
+    this.#updateControlState();
+    this.#speakEntry(speakId);
+  }
+
   #playpause() {
     if (!this.classList.contains('speaking')) {
       this.#speak();
@@ -2155,20 +2196,9 @@ class WcSpeech extends HTMLElement {
     }
 
     if (this.#paused) {
-      this.#paused = false;
-      const speakId = ++this.#speakId;
-      this.#announce(this.#text('status-speaking'));
-      this.#setSpeechState('speaking');
-      this.#updateControlState();
-      this.#speakEntry(speakId);
+      this.#resumeSpeech();
     } else {
-      this.#paused = true;
-      this.#speakId += 1;
-      this.#clearKeepAlive();
-      speechSynthesis.cancel();
-      this.#announce(this.#text('status-paused'));
-      this.#setSpeechState('paused');
-      this.#updateControlState();
+      this.#pauseSpeech();
     }
   }
 
@@ -2238,6 +2268,7 @@ class WcSpeech extends HTMLElement {
     const voiceIndex = this.#voiceSelect?.selectedIndex ?? -1;
     this.#defaultVoice = voiceIndex >= 0 ? this.#voices[voiceIndex] : null;
     this.#defaultLang = targetInheritedLang;
+    this.#speechSource = 'full';
 
     this.classList.add('speaking');
     this.#announce(this.#text('status-speaking'));
@@ -2259,6 +2290,7 @@ class WcSpeech extends HTMLElement {
         this.#clearHighlight();
         this.classList.remove('speaking');
         this.#paused = false;
+        this.#speechSource = null;
         this.#announce(this.#text('status-finished'));
         this.#setSpeechState('ready');
         this.#updateControlState();
@@ -2312,6 +2344,7 @@ class WcSpeech extends HTMLElement {
       this.#clearHighlight();
       this.classList.remove('speaking');
       this.#paused = false;
+      this.#speechSource = null;
       this.#updateControlState();
       this.#reportError('synthesis-failed', { error: event.error ?? 'synthesis-failed' });
     });

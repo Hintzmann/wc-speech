@@ -539,6 +539,80 @@ describe('wc-speech integration', () => {
       assert.equal(utterance.text, 'Hello');
     });
 
+    it('clears the native selection when marked speech starts', async () => {
+      const paragraph = document.querySelector('#article p');
+      const selection = selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      assert.equal(selection.toString(), 'Hello');
+
+      clickMarked();
+
+      assert.equal(selection.rangeCount, 0);
+    });
+
+    it('pauses and resumes marked speech on repeated --speech-marked clicks', async () => {
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+
+      const speech = speechElement();
+      clickMarked();
+      assert.equal(speech.getAttribute('data-speech-state'), 'speaking');
+      assert.equal(speechMocks().utterances.length, 1);
+
+      clickMarked();
+      assert.equal(speech.getAttribute('data-speech-state'), 'paused');
+      assert.equal(speechMocks().utterances.length, 1);
+
+      clickMarked();
+      assert.equal(speech.getAttribute('data-speech-state'), 'speaking');
+      assert.equal(speechMocks().utterances.length, 2);
+    });
+
+    it('switches from full-page speech to marked speech', async () => {
+      clickPlay();
+      assert.equal(speechElement().getAttribute('data-speech-state'), 'speaking');
+
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+      clickMarked();
+
+      const utterance = speechMocks().utterances.at(-1);
+      assert.equal(utterance.text, 'Hello');
+    });
+
+    it('syncs data-speech-face on --speech-marked buttons', async () => {
+      setupSelectionArticle('<p>Hello world.</p>');
+      const markedButton = document.getElementById('marked');
+      markedButton.innerHTML = `
+        <span data-speech-face="play">Read</span>
+        <span data-speech-face="pause" hidden>Pause</span>
+      `;
+
+      const paragraph = document.querySelector('#article p');
+      selectTextIn(paragraph, 0, 5);
+      mouseup();
+      await flushDeferredSelection();
+      clickMarked();
+
+      const playFace = markedButton.querySelector('[data-speech-face="play"]');
+      const pauseFace = markedButton.querySelector('[data-speech-face="pause"]');
+      assert.equal(playFace.hidden, true);
+      assert.equal(pauseFace.hidden, false);
+      assert.equal(markedButton.getAttribute('data-speech-action'), 'pause');
+
+      clickMarked();
+
+      assert.equal(playFace.hidden, false);
+      assert.equal(pauseFace.hidden, true);
+      assert.equal(markedButton.getAttribute('data-speech-action'), 'play');
+    });
+
     it('expands abbr title text when the marked selection includes the abbreviation', async () => {
       setupSelectionArticle(`
         <p>På Skagens Museum kan man se en udstilling om <abbr title="Peder Severin Krøyer">P.S. Krøyer</abbr> og den franske kunstscene.</p>
